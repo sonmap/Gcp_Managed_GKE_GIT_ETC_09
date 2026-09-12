@@ -1,0 +1,23 @@
+steps:
+  - name: hashicorp/terraform:1.9
+    id: init
+    dir: terraform/02-sandbox
+    args: ["init", "-backend-config=bucket=${_STATE_BUCKET}", "-backend-config=prefix=sandbox/${_TASK_NAME}"]
+  - name: hashicorp/terraform:1.9
+    id: destroy
+    dir: terraform/02-sandbox
+    args:
+      - destroy
+      - -input=false
+      - -auto-approve
+      - -var=task_name=${_TASK_NAME}
+      - -var=subnet_cidr=${_SUBNET_CIDR}
+      - -var=group_email=${_GROUP_EMAIL}
+substitutions:
+  _TASK_NAME: sbx01
+  _SUBNET_CIDR: 172.31.110.0/24
+  _GROUP_EMAIL: pgrp-gcp-dev-sbx01@sonmap.net
+  _STATE_BUCKET: REPLACE_STATE_BUCKET
+options:
+  logging: CLOUD_LOGGING_ONLY
+
