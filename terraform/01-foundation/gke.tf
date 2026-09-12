@@ -11,8 +11,7 @@ resource "google_container_cluster" "sandbox" {
   deletion_protection = true
 
   ip_allocation_policy {
-    cluster_secondary_range_name  = var.gke_pod_range_name
-    services_ipv4_cidr_block       = var.gke_service_ipv4_cidr
+    cluster_secondary_range_name = var.gke_pod_range_name
   }
 
   private_cluster_config {
