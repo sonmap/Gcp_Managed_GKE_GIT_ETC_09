@@ -5,6 +5,6 @@ shared_vpc_host_project_id  = "pjt-d-shared-base"
 network_name                = "vpc-d-shared-base"
 gke_cluster_name            = "gke-sbx-main-an3"
 subnet_cidr                 = "172.31.110.0/24"
+task_subnet_name            = "subnet-sbx01-an3"
 group_email                 = "pgrp-gcp-dev-sbx01@sonmap.net"
 users = ["user01@sonmap.net", "user02@sonmap.net", "user03@sonmap.net"]
-

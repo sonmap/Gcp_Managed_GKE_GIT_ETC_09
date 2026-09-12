@@ -27,6 +27,10 @@ variable "network_name" {
   default = "vpc-d-shared-base"
 }
 variable "subnet_cidr" { type = string }
+variable "task_subnet_name" {
+  type = string
+  default = "subnet-sbx01-an3"
+}
 variable "gke_cluster_name" {
   type = string
   default = "gke-sbx-main-an3"
@@ -47,4 +51,3 @@ variable "vm_boot_disk_gb" {
   type = number
   default = 50
 }
-

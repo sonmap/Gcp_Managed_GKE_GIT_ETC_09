@@ -1,0 +1,10 @@
+variable "shared_vpc_host_project_id" { type = string }
+variable "network_name" { type = string }
+variable "region" { type = string }
+variable "gke_subnet_name" { type = string }
+variable "cloudrun_subnet_cidr" { type = string }
+variable "cloudbuild_psa_cidr" { type = string }
+variable "task_name" { type = string }
+variable "task_subnet_cidr" { type = string }
+variable "task_vm_service_account_email" { type = string }
+variable "gke_pod_cidr" { type = string }

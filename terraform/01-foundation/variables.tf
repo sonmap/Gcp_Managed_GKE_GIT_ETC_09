@@ -14,7 +14,9 @@ variable "network_name" {
   type = string
   default = "vpc-d-shared-base"
 }
-variable "gke_subnet_name" { type = string }
+variable "shared_vpc_network_self_link" { type = string }
+variable "gke_subnet_self_link" { type = string }
+variable "cloudrun_subnet_self_link" { type = string }
 variable "gke_pod_range_name" { type = string }
 variable "gke_service_ipv4_cidr" {
   type = string
@@ -24,8 +26,6 @@ variable "gke_cluster_name" {
   type = string
   default = "gke-sbx-main-an3"
 }
-variable "cloudrun_subnet_cidr" { type = string }
-variable "cloudbuild_psa_cidr" { type = string }
 variable "state_bucket_name" { type = string }
 variable "github_owner" {
   type = string

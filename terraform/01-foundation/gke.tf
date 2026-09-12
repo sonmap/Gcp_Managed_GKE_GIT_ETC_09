@@ -5,8 +5,8 @@ resource "google_container_cluster" "sandbox" {
   location = var.region
 
   enable_autopilot    = true
-  network             = data.google_compute_network.shared.self_link
-  subnetwork          = data.google_compute_subnetwork.gke.self_link
+  network             = var.shared_vpc_network_self_link
+  subnetwork          = var.gke_subnet_self_link
   networking_mode     = "VPC_NATIVE"
   deletion_protection = true
 

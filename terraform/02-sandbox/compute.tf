@@ -17,7 +17,7 @@ resource "google_compute_instance" "task" {
     }
   }
   network_interface {
-    subnetwork         = google_compute_subnetwork.task.self_link
+    subnetwork         = var.task_subnet_name
     subnetwork_project = var.shared_vpc_host_project_id
   }
   service_account {
@@ -25,5 +25,4 @@ resource "google_compute_instance" "task" {
     scopes = ["cloud-platform"]
   }
   deletion_protection = true
-  depends_on = [google_compute_subnetwork_iam_member.vm_network_user]
 }

@@ -10,12 +10,9 @@ resource "google_cloudbuild_worker_pool" "terraform" {
   }
 
   network_config {
-    peered_network = data.google_compute_network.shared.id
+    peered_network = var.shared_vpc_network_self_link
   }
-
-  depends_on = [google_service_networking_connection.private_service_access]
 }
 
 # GitHub App 승인이 필요한 Cloud Build v2 connection은 최초 1회 Console에서
 # 생성한 뒤 Terraform import를 권장합니다. 인증 토큰을 코드에 저장하지 않습니다.
-

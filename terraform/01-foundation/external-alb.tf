@@ -93,17 +93,3 @@ resource "google_compute_global_forwarding_rule" "jupyter" {
   target                = google_compute_target_https_proxy.jupyter[0].id
   load_balancing_scheme = "EXTERNAL_MANAGED"
 }
-
-resource "google_compute_firewall" "health_checks_to_pods" {
-  provider           = google.host
-  project            = var.shared_vpc_host_project_id
-  name               = "fw-allow-google-hc-jupyter-pods"
-  network            = data.google_compute_network.shared.name
-  direction          = "INGRESS"
-  source_ranges      = ["35.191.0.0/16", "130.211.0.0/22"]
-  destination_ranges = [var.gke_pod_cidr]
-  allow {
-    protocol = "tcp"
-    ports = ["8000"]
-  }
-}

@@ -17,8 +17,8 @@ resource "google_cloud_run_v2_service" "provisioner" {
     }
     vpc_access {
       network_interfaces {
-        network    = data.google_compute_network.shared.id
-        subnetwork = google_compute_subnetwork.cloudrun_egress.id
+        network    = var.shared_vpc_network_self_link
+        subnetwork = var.cloudrun_subnet_self_link
         tags       = ["cloud-run-sandbox-provisioner"]
       }
       egress = "PRIVATE_RANGES_ONLY"
