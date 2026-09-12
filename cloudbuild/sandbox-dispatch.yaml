@@ -2,31 +2,58 @@ steps:
   - name: hashicorp/terraform:1.9
     id: init
     dir: terraform/02-sandbox
-    args: ["init", "-backend-config=bucket=${_STATE_BUCKET}", "-backend-config=prefix=sandbox/${_TASK_NAME}"]
+    args:
+      - init
+      - -reconfigure
+      - -backend-config=bucket=${_STATE_BUCKET}
+      - -backend-config=prefix=sandbox/${_TASK_NAME}
+
   - name: hashicorp/terraform:1.9
     id: validate
     dir: terraform/02-sandbox
     args: ["validate"]
+
   - name: hashicorp/terraform:1.9
     id: execute
     dir: terraform/02-sandbox
     entrypoint: sh
+    secretEnv:
+      - TF_VAR_jupyter_oauth_client_id
+      - TF_VAR_jupyter_oauth_client_secret
     args:
       - -ceu
       - |
-        common="-input=false -var=task_name=${_TASK_NAME} -var=subnet_cidr=${_SUBNET_CIDR} -var=group_email=${_GROUP_EMAIL}"
+        set -- \
+          -input=false \
+          -var=task_name=${_TASK_NAME} \
+          -var=group_email=${_GROUP_EMAIL} \
+          -var=enable_jupyterhub=${_ENABLE_JUPYTERHUB} \
+          -var=jupyter_domain=${_JUPYTER_DOMAIN}
+
         case "${_ACTION}" in
-          plan) terraform plan $common ;;
-          apply) terraform apply $common -auto-approve ;;
-          destroy) terraform destroy $common -auto-approve ;;
+          plan) terraform plan "$@" ;;
+          apply) terraform apply "$@" -auto-approve ;;
+          destroy) terraform destroy "$@" -auto-approve ;;
           *) echo "Unsupported action: ${_ACTION}" >&2; exit 2 ;;
         esac
+
 substitutions:
   _ACTION: plan
   _TASK_NAME: sbx01
-  _SUBNET_CIDR: 172.31.110.0/24
   _GROUP_EMAIL: pgrp-gcp-dev-sbx01@sonmap.net
   _STATE_BUCKET: REPLACE_STATE_BUCKET
+  _WORKER_POOL: REPLACE_WORKER_POOL
+  _JUPYTER_DOMAIN: jupyter-sbx01.sonmap.net
+  _ENABLE_JUPYTERHUB: "true"
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/jupyter-oauth-client-id/versions/latest
+      env: TF_VAR_jupyter_oauth_client_id
+    - versionName: projects/$PROJECT_ID/secrets/jupyter-oauth-client-secret/versions/latest
+      env: TF_VAR_jupyter_oauth_client_secret
+
 options:
   logging: CLOUD_LOGGING_ONLY
-
+  pool:
+    name: ${_WORKER_POOL}

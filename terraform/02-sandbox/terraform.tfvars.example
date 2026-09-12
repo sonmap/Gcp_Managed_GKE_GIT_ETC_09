@@ -1,17 +1,13 @@
-task_name                  = "sbx01"
-resource_project_id         = "pjt-c-admin"
-gke_project_id              = "pjt-d-host01"
-shared_vpc_host_project_id  = "pjt-d-shared-base"
-network_name                = "vpc-d-shared-base"
-gke_cluster_name            = "gke-sbx-main-an3"
-subnet_cidr                 = "172.31.110.0/24"
-task_subnet_name            = "subnet-sbx01-an3"
-group_email                 = "pgrp-gcp-dev-sbx01@sonmap.net"
-users = ["user01@sonmap.net", "user02@sonmap.net", "user03@sonmap.net"]
+task_name                 = "sbx01"
+resource_project_id        = "pjt-c-admin"
+gke_project_id             = "pjt-d-host01"
+gke_cluster_name           = "gke-sbx-main-an3"
+group_email                = "pgrp-gcp-dev-sbx01@sonmap.net"
+users                      = ["user01@sonmap.net", "user02@sonmap.net", "user03@sonmap.net"]
+enable_jupyterhub          = true
+jupyter_domain             = "jupyter-sbx01.sonmap.net"
+jupyter_notebook_storage   = "40Gi"
 
-# Enable only after creating a Google OAuth web client.
-enable_jupyterhub           = false
-jupyter_domain              = "jupyter-sbx01.sonmap.net"
-jupyter_oauth_client_id     = ""
-jupyter_oauth_client_secret = ""
-jupyter_notebook_storage    = "40Gi"
+# Do not commit real OAuth values. Cloud Build injects these through Secret Manager.
+jupyter_oauth_client_id     = "REPLACE_AT_RUNTIME"
+jupyter_oauth_client_secret = "REPLACE_AT_RUNTIME"

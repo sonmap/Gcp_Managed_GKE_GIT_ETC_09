@@ -1,81 +1,164 @@
 # GCP Managed GKE Sandbox
 
-GitHub, Cloud Build, Cloud Run과 Terraform으로 운영하는 2단계 Sandbox 플랫폼입니다.
+GitHub, Cloud Run, Cloud Build와 Terraform으로 운영하는 2단계 Sandbox 플랫폼입니다.
 
-## 프로젝트 배치
+## 확정 프로젝트 역할
 
 | 프로젝트 | 역할 |
 |---|---|
-| `pjt-d-shared-base` | Shared VPC Host, 공통 Subnet과 방화벽 관리 |
-| `pjt-d-host01` | GKE Autopilot, JupyterHub, 과제 Namespace, External HTTPS ALB |
-| `pjt-c-admin` | `sbx01` BigQuery, GCS, GCE, GSA |
-| `prj-b-cicd-local-236d` | Cloud Build, Cloud Run Provisioner, Artifact Registry, Terraform State |
+| `pjt-d-shared-base` | Shared VPC Host, 공통 Subnet, NAT, PSA 관리 |
+| `pjt-d-host01` | GKE Autopilot, 과제 Namespace, JupyterHub, External HTTPS ALB |
+| `pjt-c-admin` | 과제별 BigQuery Dataset, GCS Bucket, Jupyter GSA만 생성 |
+| `prj-b-cicd-local-236d` | Cloud Run Provisioner, Cloud Build Trigger/Private Pool, Artifact Registry, Secret Manager, Terraform State |
 
-> External HTTPS Load Balancer는 GKE NEG와 같은 서비스 프로젝트인 `pjt-d-host01`에 생성하고, 네트워크는 `pjt-d-shared-base`의 Shared VPC를 사용합니다. Shared VPC Host에 프런트엔드를 강제로 분리하려면 Cross-project service referencing을 별도 설계해야 합니다.
+`02-sandbox`는 `pjt-c-admin`에 VM을 만들지 않습니다. Notebook은 `pjt-d-host01`의 GKE Autopilot Pod로 실행합니다.
 
-## 실행 구분
+## 실행 구조
 
-| 실행 위치 | Terraform 범위 | 실행 ID |
+| 단계 | 실행 위치 | 생성 범위 |
 |---|---|---|
-| `pjt-d-shared-base` Cloud Shell | Shared VPC 관련 gcloud 작업 | 로그인한 네트워크 관리자 |
-| `pjt-c-admin/asia-northeast3-b/instance-son` | `01-foundation`, `02-sandbox` | `40744085720-compute@developer.gserviceaccount.com` |
+| 1차 `01-foundation` | `pjt-c-admin`의 `instance-son`에서 Terraform 실행 | GKE, Artifact Registry, Private Pool, Cloud Build Trigger, Cloud Run Provisioner, 실행 SA, OAuth Secret 컨테이너 |
+| 2차 `02-sandbox` | Cloud Run → Cloud Build Private Pool → Terraform | Namespace, JupyterHub/NEG, GSA/KSA, BigQuery, GCS |
+| Shared VPC 작업 | `pjt-d-shared-base` Cloud Shell에서 gcloud 실행 | Subnet, NAT, PSA, Shared VPC IAM |
 
-Host 프로젝트의 Subnet, PSA, 방화벽은 `instance-son`에서 변경하지 않습니다. Cloud Shell에서 먼저 생성하고 출력된 Self Link와 Subnet 이름을 1차·2차 변수로 전달합니다.
+## 1차 실행 전 준비
 
-### 1차: 공통 기반
+### GitHub 연결
+
+Cloud Build GitHub App에서 다음 저장소를 `prj-b-cicd-local-236d` 프로젝트에 연결합니다.
+
+```text
+sonmap/Gcp_Managed_GKE_GIT_ETC_09
+```
+
+Terraform은 연결된 저장소를 사용해 `trigger-sandbox-dispatch`를 생성합니다. GitHub App 승인은 Terraform으로 대신할 수 없는 최초 1회 작업입니다.
+
+### Terraform State 버킷
+
+```text
+tfstate-sbx-cicd-236d-40744085720
+```
+
+State 버킷은 `01-foundation`보다 먼저 생성되어 있어야 합니다.
+
+## 1차: Foundation
 
 `instance-son`에서 실행합니다.
 
 ```bash
-cd terraform/01-foundation
+cd ~/Gcp_Managed_GKE_GIT_ETC_09/terraform/01-foundation
 cp terraform.tfvars.example terraform.tfvars
+
 terraform init -reconfigure \
-  -backend-config="bucket=YOUR_STATE_BUCKET" \
+  -backend-config="bucket=tfstate-sbx-cicd-236d-40744085720" \
   -backend-config="prefix=foundation"
+
 terraform fmt -recursive
 terraform validate
 terraform plan -out=foundation.tfplan
 terraform apply foundation.tfplan
+terraform output
 ```
 
-### 2차: sbx01 과제
+Terraform은 다음 순서로 작업합니다.
 
-운영에서는 Cloud Run이 Cloud Build를 호출합니다. 수동 검증은 다음과 같습니다.
+1. Artifact Registry `ar-sandbox-platform` 생성
+2. Cloud Build로 `cloudrun-provisioner` 이미지 빌드 및 Push
+3. Cloud Build Private Pool `pool-sandbox-terraform` 생성
+4. Cloud Build Trigger `trigger-sandbox-dispatch` 생성
+5. Cloud Run `run-sandbox-provisioner` 생성
+
+Provisioner 이미지 주소:
+
+```text
+asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/run-sandbox-provisioner:latest
+```
+
+## OAuth Secret 값 등록
+
+Terraform은 Secret 컨테이너만 생성합니다. 실제 OAuth 값은 State에 넣지 않고 별도로 등록합니다.
 
 ```bash
-cd terraform/02-sandbox
-cp terraform.tfvars.example terraform.tfvars
-terraform init -reconfigure \
-  -backend-config="bucket=YOUR_STATE_BUCKET" \
-  -backend-config="prefix=sandbox/sbx01"
-terraform fmt -recursive
-terraform validate
-terraform plan -out=sbx01.tfplan
-terraform apply sbx01.tfplan
+read -s -p "OAuth Client ID: " OAUTH_CLIENT_ID
+echo
+printf '%s' "$OAUTH_CLIENT_ID" | gcloud secrets versions add jupyter-oauth-client-id \
+  --project=prj-b-cicd-local-236d \
+  --data-file=-
+
+read -s -p "OAuth Client Secret: " OAUTH_CLIENT_SECRET
+echo
+printf '%s' "$OAUTH_CLIENT_SECRET" | gcloud secrets versions add jupyter-oauth-client-secret \
+  --project=prj-b-cicd-local-236d \
+  --data-file=-
+
+unset OAUTH_CLIENT_ID OAUTH_CLIENT_SECRET
 ```
 
-## JupyterHub와 외부 HTTPS 접속
-
-### 1. Google OAuth 준비
-
-Google Auth Platform에서 Web application OAuth Client를 만들고 다음 Redirect URI를 등록합니다.
+OAuth Redirect URI:
 
 ```text
 https://jupyter-sbx01.sonmap.net/hub/oauth_callback
 ```
 
-`terraform/02-sandbox/terraform.tfvars`에 값을 설정합니다.
+## 2차: Cloud Run으로 sbx01 생성
 
-```hcl
-enable_jupyterhub           = true
-jupyter_domain              = "jupyter-sbx01.sonmap.net"
-jupyter_oauth_client_id     = "REPLACE_OAUTH_CLIENT_ID"
-jupyter_oauth_client_secret = "REPLACE_OAUTH_CLIENT_SECRET"
+Cloud Run URL을 확인합니다.
+
+```bash
+cd ~/Gcp_Managed_GKE_GIT_ETC_09/terraform/01-foundation
+RUN_URL=$(terraform output -raw provisioner_uri)
+ID_TOKEN=$(gcloud auth print-identity-token --audiences="$RUN_URL")
 ```
 
-OAuth Secret은 Git에 커밋하지 않습니다. 설정 후 `02-sandbox`를 plan/apply하면 JupyterHub와 `neg-jupyter-sbx01` Standalone NEG가 생성됩니다.
+먼저 Plan 요청:
 
-### 2. NEG 확인
+```bash
+curl -X POST "$RUN_URL/provision" \
+  -H "Authorization: Bearer $ID_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "plan",
+    "task_name": "sbx01",
+    "group_email": "pgrp-gcp-dev-sbx01@sonmap.net"
+  }'
+```
+
+Plan 확인 후 Apply 요청:
+
+```bash
+curl -X POST "$RUN_URL/provision" \
+  -H "Authorization: Bearer $ID_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "action": "apply",
+    "task_name": "sbx01",
+    "group_email": "pgrp-gcp-dev-sbx01@sonmap.net"
+  }'
+```
+
+호출 흐름:
+
+```text
+사용자
+  → run-sandbox-provisioner
+  → trigger-sandbox-dispatch
+  → pool-sandbox-terraform
+  → terraform/02-sandbox
+  ├─ pjt-d-host01: Namespace, JupyterHub, NEG, KSA
+  └─ pjt-c-admin: BigQuery, GCS, GSA
+```
+
+## 02-sandbox 생성 자원
+
+| 프로젝트 | 자원 |
+|---|---|
+| `pjt-d-host01` | Namespace `sbx01`, JupyterHub `jupyterhub-sbx01`, NEG `neg-jupyter-sbx01`, KSA `ksa-jupyter-sbx01` |
+| `pjt-c-admin` | BigQuery `sbx01_main`, GCS `pjt-c-admin-sbx01-data`, GSA `gsa-jupyter-sbx01` |
+| 생성하지 않음 | `vm-sbx01-01`, `sa-vm-sbx01` |
+
+## External HTTPS ALB
+
+JupyterHub 적용 후 NEG를 확인합니다.
 
 ```bash
 gcloud compute network-endpoint-groups list \
@@ -84,40 +167,22 @@ gcloud compute network-endpoint-groups list \
   --format="table(name,zone.basename(),networkEndpointType)"
 ```
 
-각 Zone의 NEG Self Link를 `terraform/01-foundation/terraform.tfvars`의 `jupyter_neg_self_links`에 입력합니다.
+조회된 NEG Self Link를 `01-foundation/terraform.tfvars`의 `jupyter_neg_self_links`에 넣고 `external_lb_domain`을 설정한 후 Foundation을 다시 적용합니다.
 
 ```hcl
 external_lb_domain = "jupyter-sbx01.sonmap.net"
 jupyter_neg_self_links = [
   "projects/pjt-d-host01/zones/asia-northeast3-a/networkEndpointGroups/neg-jupyter-sbx01",
-  "projects/pjt-d-host01/zones/asia-northeast3-b/networkEndpointGroups/neg-jupyter-sbx01",
-  "projects/pjt-d-host01/zones/asia-northeast3-c/networkEndpointGroups/neg-jupyter-sbx01",
 ]
 ```
 
-실제로 조회된 Zone의 NEG만 입력합니다. 이후 `01-foundation`을 다시 plan/apply하여 External HTTPS ALB를 생성합니다.
+실제로 생성된 Zone의 NEG만 입력합니다. ALB IP가 만들어진 뒤 Public DNS A 레코드를 등록합니다.
 
-### 3. DNS 연결
+## 보안 주의사항
 
-```bash
-cd terraform/01-foundation
-terraform output jupyter_external_ip
-```
-
-출력된 IP로 다음 Public DNS A 레코드를 등록합니다.
-
-```text
-jupyter-sbx01.sonmap.net -> JUPYTER_EXTERNAL_IP
-```
-
-Google 관리 인증서가 `ACTIVE` 상태가 된 후 `user01@sonmap.net`으로 접속합니다.
-
-## 주의사항
-
-- 예제 CIDR은 실제 Shared VPC의 기존 Subnet, PSA Range와 중복 여부를 확인한 후 변경합니다.
-- `instance-son`에는 외부 IP가 없어도 되지만 Google API 접근 경로와 `cloud-platform` access scope가 필요합니다.
-- 기본 Compute 서비스 계정에는 대상 세 프로젝트의 최소 IAM과 GKE API 접근 권한이 필요합니다.
-- `pgrp-gcp-dev-sbx01@sonmap.net`과 사용자 3명은 기존 자원으로 조회합니다.
-- OAuth Client Secret, `terraform.tfvars`, State, 인증서 개인키와 서비스 계정 키는 Git에 저장하지 않습니다.
-- External ALB의 Backend는 GKE Standalone NEG이며 인터넷에서 Pod IP로 직접 접근하지 않습니다.
-- Cloud Run이 호출하는 Build Trigger의 설정 파일은 `cloudbuild/sandbox-dispatch.yaml`입니다.
+- OAuth Client Secret, `terraform.tfvars`, Terraform State를 Git에 커밋하지 않습니다.
+- Cloud Run은 IAM 인증이 필요하며 `pgrp-gcp-dev-sbx01@sonmap.net` 그룹만 호출할 수 있습니다.
+- Cloud Build 실행 SA는 02단계 생성에 필요한 프로젝트 권한만 사용합니다.
+- Cloud Run의 Google API 호출은 Direct VPC Egress가 아니라 Google API 경로를 사용합니다.
+- Direct VPC Egress Subnet은 사설 VPC 목적지 통신에 사용합니다.
+- `subnet-sbx01-an3`은 Sandbox VM을 만들지 않으므로 현재 02단계에서는 사용하지 않습니다.

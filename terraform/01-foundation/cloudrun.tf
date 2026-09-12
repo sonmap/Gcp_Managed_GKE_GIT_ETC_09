@@ -1,5 +1,4 @@
 resource "google_cloud_run_v2_service" "provisioner" {
-  count    = var.provisioner_image == "" ? 0 : 1
   project  = var.cicd_project_id
   name     = "run-sandbox-provisioner"
   location = var.region
@@ -7,8 +6,10 @@ resource "google_cloud_run_v2_service" "provisioner" {
 
   template {
     service_account = google_service_account.provisioner.email
+
     containers {
-      image = var.provisioner_image
+      image = local.provisioner_image_uri
+
       env {
         name  = "GCP_PROJECT"
         value = var.cicd_project_id
@@ -22,14 +23,27 @@ resource "google_cloud_run_v2_service" "provisioner" {
         value = google_cloudbuild_worker_pool.terraform.id
       }
       env {
+        name  = "STATE_BUCKET"
+        value = var.state_bucket_name
+      }
+      env {
         name  = "GITHUB_REPOSITORY"
         value = "${var.github_owner}/${var.github_repository}"
       }
       env {
+        name  = "GITHUB_BRANCH"
+        value = var.github_branch
+      }
+      env {
         name  = "BUILD_TRIGGER_ID"
-        value = var.sandbox_build_trigger_id
+        value = google_cloudbuild_trigger.sandbox_dispatch.trigger_id
+      }
+      env {
+        name  = "JUPYTER_DOMAIN"
+        value = var.jupyter_domain
       }
     }
+
     vpc_access {
       network_interfaces {
         network    = var.shared_vpc_network_self_link
@@ -39,13 +53,14 @@ resource "google_cloud_run_v2_service" "provisioner" {
       egress = "PRIVATE_RANGES_ONLY"
     }
   }
+
+  depends_on = [terraform_data.provisioner_image]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "provisioner_invoker" {
-  count    = var.provisioner_image == "" ? 0 : 1
   project  = var.cicd_project_id
   location = var.region
-  name     = google_cloud_run_v2_service.provisioner[0].name
+  name     = google_cloud_run_v2_service.provisioner.name
   role     = "roles/run.invoker"
-  member   = "group:pgrp-gcp-dev-l2-admin@sonmap.net"
+  member   = "group:${var.provisioner_invoker_group_email}"
 }

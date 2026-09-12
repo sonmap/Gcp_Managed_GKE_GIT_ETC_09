@@ -1,4 +1,3 @@
-import ipaddress
 import os
 import re
 
@@ -17,19 +16,12 @@ def healthz():
 @app.post("/provision")
 def provision():
     body = request.get_json(silent=True) or {}
-    task = body.get("task_name", "")
-    cidr = body.get("subnet_cidr", "")
+    task = body.get("task_name", "sbx01")
     action = body.get("action", "plan")
     group = body.get("group_email", "pgrp-gcp-dev-sbx01@sonmap.net")
 
     if not TASK_RE.fullmatch(task):
         return jsonify(error="invalid task_name"), 400
-    try:
-        network = ipaddress.ip_network(cidr, strict=True)
-        if network.version != 4 or network.prefixlen != 24:
-            raise ValueError
-    except ValueError:
-        return jsonify(error="subnet_cidr must be a valid IPv4 /24"), 400
     if action not in {"plan", "apply", "destroy"}:
         return jsonify(error="action must be plan, apply, or destroy"), 400
     if not group.endswith("@sonmap.net"):
@@ -38,19 +30,31 @@ def provision():
     project = os.environ["GCP_PROJECT"]
     region = os.environ["GCP_REGION"]
     trigger_id = os.environ["BUILD_TRIGGER_ID"]
+    branch = os.environ["GITHUB_BRANCH"]
+
+    substitutions = {
+        "_ACTION": action,
+        "_TASK_NAME": task,
+        "_GROUP_EMAIL": group,
+        "_STATE_BUCKET": os.environ["STATE_BUCKET"],
+        "_WORKER_POOL": os.environ["WORKER_POOL"],
+        "_JUPYTER_DOMAIN": os.environ["JUPYTER_DOMAIN"],
+        "_ENABLE_JUPYTERHUB": "true",
+    }
+
     client = cloudbuild_v1.CloudBuildClient()
     operation = client.run_build_trigger(
-        project_id=project,
-        trigger_id=trigger_id,
-        source=cloudbuild_v1.RepoSource(
-            branch_name="main",
-            substitutions={
-                "_ACTION": action,
-                "_TASK_NAME": task,
-                "_SUBNET_CIDR": cidr,
-                "_GROUP_EMAIL": group,
-            },
-        ),
+        request=cloudbuild_v1.RunBuildTriggerRequest(
+            name=f"projects/{project}/locations/{region}/triggers/{trigger_id}",
+            source=cloudbuild_v1.RepoSource(
+                branch_name=branch,
+                substitutions=substitutions,
+            ),
+        )
     )
-    return jsonify(status="accepted", operation=operation.operation.name), 202
-
+    return jsonify(
+        status="accepted",
+        action=action,
+        task_name=task,
+        operation=operation.operation.name,
+    ), 202
