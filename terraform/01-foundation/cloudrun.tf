@@ -9,11 +9,26 @@ resource "google_cloud_run_v2_service" "provisioner" {
     service_account = google_service_account.provisioner.email
     containers {
       image = var.provisioner_image
-      env { name = "GCP_PROJECT", value = var.cicd_project_id }
-      env { name = "GCP_REGION", value = var.region }
-      env { name = "WORKER_POOL", value = google_cloudbuild_worker_pool.terraform.id }
-      env { name = "GITHUB_REPOSITORY", value = "${var.github_owner}/${var.github_repository}" }
-      env { name = "BUILD_TRIGGER_ID", value = var.sandbox_build_trigger_id }
+      env {
+        name  = "GCP_PROJECT"
+        value = var.cicd_project_id
+      }
+      env {
+        name  = "GCP_REGION"
+        value = var.region
+      }
+      env {
+        name  = "WORKER_POOL"
+        value = google_cloudbuild_worker_pool.terraform.id
+      }
+      env {
+        name  = "GITHUB_REPOSITORY"
+        value = "${var.github_owner}/${var.github_repository}"
+      }
+      env {
+        name  = "BUILD_TRIGGER_ID"
+        value = var.sandbox_build_trigger_id
+      }
     }
     vpc_access {
       network_interfaces {
