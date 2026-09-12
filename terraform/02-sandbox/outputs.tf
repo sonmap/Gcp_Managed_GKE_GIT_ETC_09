@@ -8,3 +8,5 @@ output "bucket" { value = google_storage_bucket.task.name }
 output "vm_name" { value = google_compute_instance.task.name }
 output "vm_internal_ip" { value = google_compute_instance.task.network_interface[0].network_ip }
 output "jupyter_gsa" { value = google_service_account.jupyter.email }
+output "jupyter_neg_name" { value = var.enable_jupyterhub ? local.jupyter_neg_name : null }
+output "jupyter_oauth_callback_url" { value = var.enable_jupyterhub ? "https://${var.jupyter_domain}/hub/oauth_callback" : null }

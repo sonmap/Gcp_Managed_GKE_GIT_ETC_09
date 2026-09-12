@@ -8,3 +8,10 @@ subnet_cidr                 = "172.31.110.0/24"
 task_subnet_name            = "subnet-sbx01-an3"
 group_email                 = "pgrp-gcp-dev-sbx01@sonmap.net"
 users = ["user01@sonmap.net", "user02@sonmap.net", "user03@sonmap.net"]
+
+# Enable only after creating a Google OAuth web client.
+enable_jupyterhub           = false
+jupyter_domain              = "jupyter-sbx01.sonmap.net"
+jupyter_oauth_client_id     = ""
+jupyter_oauth_client_secret = ""
+jupyter_notebook_storage    = "40Gi"
