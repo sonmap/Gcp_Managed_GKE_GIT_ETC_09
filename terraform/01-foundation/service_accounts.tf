@@ -113,6 +113,7 @@ resource "google_service_account_iam_member" "foundation_executor_uses_runtime_a
 resource "google_project_iam_member" "orchestrator_roles" {
   for_each = toset([
     "roles/config.admin",
+    "roles/cloudbuild.builds.editor",
     "roles/artifactregistry.reader",
     "roles/logging.logWriter",
     "roles/secretmanager.secretAccessor",
