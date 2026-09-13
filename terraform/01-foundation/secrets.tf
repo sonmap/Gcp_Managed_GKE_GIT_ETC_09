@@ -13,7 +13,11 @@ resource "google_secret_manager_secret" "automation" {
   replication {
     auto {}
   }
-  depends_on = [google_project_service.cicd]
+
+  depends_on = [
+    google_project_service.cicd,
+    google_project_iam_member.foundation_executor_bootstrap_roles,
+  ]
 }
 
 resource "google_secret_manager_secret_iam_member" "orchestrator" {
