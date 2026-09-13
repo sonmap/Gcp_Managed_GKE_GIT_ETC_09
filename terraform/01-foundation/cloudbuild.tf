@@ -20,6 +20,8 @@ resource "terraform_data" "automation_image" {
       gcloud builds submit "${path.module}/../../automation-runner" \
         --project="${var.cicd_project_id}" \
         --region="${var.region}" \
+        --gcs-source-staging-dir="gs://${var.state_bucket_name}/cloudbuild-source" \
+        --gcs-log-dir="gs://${var.state_bucket_name}/cloudbuild-logs" \
         --tag="${local.automation_image_uri}" \
         --quiet
     EOT
@@ -48,6 +50,8 @@ resource "terraform_data" "provisioner_image" {
       gcloud builds submit "${path.module}/../../cloudrun-provisioner" \
         --project="${var.cicd_project_id}" \
         --region="${var.region}" \
+        --gcs-source-staging-dir="gs://${var.state_bucket_name}/cloudbuild-source" \
+        --gcs-log-dir="gs://${var.state_bucket_name}/cloudbuild-logs" \
         --tag="${local.provisioner_image_uri}" \
         --quiet
     EOT
