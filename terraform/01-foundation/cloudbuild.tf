@@ -28,6 +28,7 @@ resource "terraform_data" "automation_image" {
   }
   depends_on = [
     google_artifact_registry_repository.platform,
+    google_artifact_registry_repository_iam_member.cloud_build_writer,
     google_storage_bucket_iam_member.cloud_build_reads_staged_source,
   ]
 }
@@ -61,6 +62,7 @@ resource "terraform_data" "provisioner_image" {
   }
   depends_on = [
     google_artifact_registry_repository.platform,
+    google_artifact_registry_repository_iam_member.cloud_build_writer,
     google_storage_bucket_iam_member.cloud_build_reads_staged_source,
   ]
 }
