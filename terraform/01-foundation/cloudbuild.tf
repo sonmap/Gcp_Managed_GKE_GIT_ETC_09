@@ -101,5 +101,8 @@ resource "google_cloudbuild_trigger" "sandbox_orchestrate" {
     _AUTOMATION_IMAGE         = local.automation_image_uri
   }
 
-  depends_on = [terraform_data.automation_image]
+  depends_on = [
+    terraform_data.automation_image,
+    google_project_iam_member.foundation_executor_cloud_build_editor,
+  ]
 }
