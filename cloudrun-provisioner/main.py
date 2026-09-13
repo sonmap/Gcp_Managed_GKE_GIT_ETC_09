@@ -119,6 +119,7 @@ def stage_variables(payload: dict) -> dict[str, dict]:
 
     return {
         "10-project": {
+            "create_project": project["create_project"],
             "project_id": project["project_id"], "project_name": project["project_name"],
             "folder_id": project["folder_id"], "billing_account": project["billing_account"],
             "task_name": task_name, "expires_on": task["expires_on"], "region": network["region"],
@@ -217,6 +218,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
     region = os.environ["GCP_REGION"]
     task = payload["task"]["name"]
     request_id = payload["request_id"]
+    deployment_key = hashlib.sha256(payload["project"]["project_id"].encode()).hexdigest()[:8]
     worker_pool = os.environ["WORKER_POOL"]
     service_account = f"projects/{project}/serviceAccounts/sa-sandbox-terraform@{project}.iam.gserviceaccount.com"
     stages = [
@@ -231,7 +233,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
         account_email = f"{account_id}@{project}.iam.gserviceaccount.com"
         commands.append(
             "gcloud infra-manager deployments apply "
-            f"\"projects/{project}/locations/{region}/deployments/im-{task}-{name}\" "
+            f"\"projects/{project}/locations/{region}/deployments/im-{task}-{deployment_key}-{name}\" "
             f"--service-account=\"projects/{project}/serviceAccounts/{account_email}\" "
             f"--gcs-source=\"{bundle_prefix}/{archive}\" "
             f"--worker-pool=\"{worker_pool}\" "
