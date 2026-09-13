@@ -49,6 +49,14 @@ resource "google_cloud_run_v2_service" "provisioner" {
         value = google_cloudbuild_worker_pool.terraform.id
       }
       env {
+        name  = "JUPYTER_CHART_URI"
+        value = var.jupyter_chart_uri
+      }
+      env {
+        name  = "JUPYTER_CHART_VERSION"
+        value = var.jupyter_chart_version
+      }
+      env {
         name  = "REQUEST_BUCKET"
         value = google_storage_bucket.requests.name
       }
