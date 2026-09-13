@@ -124,6 +124,14 @@ resource "google_project_iam_member" "orchestrator_roles" {
   member  = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
 }
 
+# Cloud Build requires iam.serviceAccounts.actAs when the orchestrator
+# submits a nested build using its own execution identity.
+resource "google_service_account_iam_member" "orchestrator_uses_self" {
+  service_account_id = google_service_account.automation["orchestrator"].name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
+}
+
 resource "google_service_account_iam_member" "orchestrator_uses_deployment_accounts" {
   for_each = toset(["project_factory", "network_admin", "project_iam", "data_admin", "gke_admin", "lb_admin"])
 
