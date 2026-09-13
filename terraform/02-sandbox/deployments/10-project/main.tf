@@ -1,6 +1,8 @@
 provider "google" {}
 
 resource "google_project" "sandbox" {
+  count = var.create_project ? 1 : 0
+
   project_id      = var.project_id
   name            = var.project_name
   folder_id       = var.folder_id
@@ -13,6 +15,13 @@ resource "google_project" "sandbox" {
     expires-on  = replace(var.expires_on, "-", "")
     managed-by  = "infrastructure-manager"
   }
+}
+
+# Reads either the newly created project or the approved existing project.
+data "google_project" "sandbox" {
+  project_id = var.project_id
+
+  depends_on = [google_project.sandbox]
 }
 
 locals {
@@ -28,9 +37,11 @@ locals {
 
 resource "google_project_service" "required" {
   for_each           = local.required_services
-  project            = google_project.sandbox.project_id
+  project            = var.project_id
   service            = each.value
   disable_on_destroy = false
+
+  depends_on = [google_project.sandbox]
 }
 
 locals {
@@ -64,10 +75,17 @@ locals {
 
 resource "google_project_iam_member" "bootstrap" {
   for_each = local.bootstrap_roles
-  project  = google_project.sandbox.project_id
+  project  = var.project_id
   role     = each.value.role
   member   = each.value.member
+
+  depends_on = [google_project.sandbox]
 }
 
-output "project_id" { value = google_project.sandbox.project_id }
-output "project_number" { value = google_project.sandbox.number }
+output "project_id" {
+  value = data.google_project.sandbox.project_id
+}
+
+output "project_number" {
+  value = data.google_project.sandbox.number
+}
