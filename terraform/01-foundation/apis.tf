@@ -26,11 +26,13 @@ resource "google_project_service" "gke" {
 }
 
 
-# Create the Infrastructure Manager service agent before assigning it access
-# to sandbox bundles.
-resource "google_project_service_identity" "infra_manager" {
-  project = var.cicd_project_id
-  service = "config.googleapis.com"
+# This provider version has no google_project_service_identity resource.
+# Create the Infrastructure Manager service agent with gcloud, then Terraform
+# can safely grant it access to the sandbox bundle bucket.
+resource "terraform_data" "infra_manager_service_identity" {
+  provisioner "local-exec" {
+    command = "gcloud beta services identity create --project=${var.cicd_project_id} --service=config.googleapis.com --quiet"
+  }
 
   depends_on = [google_project_service.cicd["config.googleapis.com"]]
 }
