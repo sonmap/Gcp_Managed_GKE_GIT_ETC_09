@@ -14,4 +14,3 @@ github_branch                = "feat/two-stage-sandbox-platform"
 foundation_executor_service_account = "40744085720-compute@developer.gserviceaccount.com"
 provisioner_ingress          = "INGRESS_TRAFFIC_ALL"
 workspace_admin_subject      = "admin@sonmap.net"
-existing_sandbox_project_ids = ["pjt-net-hub-base"]
