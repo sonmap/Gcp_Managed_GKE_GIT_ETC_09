@@ -15,6 +15,8 @@ resource "google_storage_bucket" "requests" {
   public_access_prevention    = "enforced"
   force_destroy               = false
   versioning { enabled = true }
+
+  depends_on = [google_project_iam_member.foundation_executor_bootstrap_roles]
 }
 
 resource "google_storage_bucket" "bundles" {
@@ -25,6 +27,8 @@ resource "google_storage_bucket" "bundles" {
   public_access_prevention    = "enforced"
   force_destroy               = false
   versioning { enabled = true }
+
+  depends_on = [google_project_iam_member.foundation_executor_bootstrap_roles]
 }
 
 resource "google_storage_bucket_iam_member" "api_reads_requests" {
