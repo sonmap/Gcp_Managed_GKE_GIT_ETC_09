@@ -73,6 +73,14 @@ resource "google_service_account_iam_member" "api_uses_orchestrator" {
   member             = "serviceAccount:${google_service_account.automation["api"].email}"
 }
 
+# Allows the controlled VM execution identity to obtain an ID token as the
+# portal caller for the initial approved-JSON end-to-end test.
+resource "google_service_account_iam_member" "foundation_executor_impersonates_portal" {
+  service_account_id = google_service_account.automation["portal"].name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
 resource "google_service_account_iam_member" "foundation_executor_uses_runtime_accounts" {
   for_each = toset(["api", "orchestrator"])
 
