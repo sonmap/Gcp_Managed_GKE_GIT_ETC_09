@@ -14,7 +14,6 @@ from flask import Flask, jsonify, request
 from google.api_core.exceptions import PreconditionFailed
 from google.cloud import storage
 from google.cloud.devtools import cloudbuild_v1
-from google.protobuf.json_format import ParseDict
 from jsonschema import Draft202012Validator, FormatChecker
 
 app = Flask(__name__)
@@ -253,7 +252,7 @@ apply_stage gke gke-jupyter.zip "sa-im-gke-admin@$PROJECT_ID.iam.gserviceaccount
         "serviceAccount": service_account,
         "timeout": "14400s",
     }
-    build = ParseDict(build_spec, cloudbuild_v1.Build())
+    build = cloudbuild_v1.Build(build_spec)
     return cloudbuild_v1.CloudBuildClient().create_build(
         project_id=project, build=build
     )
@@ -308,7 +307,7 @@ def provision():
             raise ValueError("request_id does not match approved JSON")
         bundle_prefix, manifest = assemble_bundles(payload, raw)
         operation, duplicate = start_build_once(payload, request_uri, bundle_prefix)
-    except (KeyError, TypeError, ValueError, requests.RequestException) as error:
+    except (KeyError, TypeError, ValueError) as error:
         return jsonify(error=str(error), request_id=request_id), 400
     except Exception:
         app.logger.exception("provisioning request failed")
