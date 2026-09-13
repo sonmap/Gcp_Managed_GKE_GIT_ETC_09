@@ -20,6 +20,6 @@ resource "google_storage_bucket_iam_member" "terraform_state" {
 # bucket before it can build either automation image.
 resource "google_storage_bucket_iam_member" "cloud_build_reads_staged_source" {
   bucket = google_storage_bucket.terraform_state.name
-  role   = "roles/storage.objectViewer"
+  role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${data.google_project.cicd.number}-compute@developer.gserviceaccount.com"
 }
