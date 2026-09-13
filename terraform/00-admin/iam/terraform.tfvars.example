@@ -1,0 +1,4 @@
+shared_vpc_host_project_id = "pjt-d-shared-base"
+region                     = "asia-northeast3"
+cloudrun_subnet_name       = "subnet-cloudrun-egress-an3"
+cicd_project_number        = "587273205772"
