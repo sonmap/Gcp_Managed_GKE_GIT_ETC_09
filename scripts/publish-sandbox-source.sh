@@ -20,10 +20,20 @@ archive="$work_dir/sandbox-source.zip"
 object="platform-releases/$release_id/sandbox-source.zip"
 
 test -d "$source_root"
-(
-  cd "$repo_root"
-  zip -qr "$archive" terraform/02-sandbox/deployments
-)
+python3 - "$repo_root" "$archive" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+repo_root = pathlib.Path(sys.argv[1])
+archive = pathlib.Path(sys.argv[2])
+source = repo_root / "terraform" / "02-sandbox" / "deployments"
+
+with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
+    for path in sorted(source.rglob("*")):
+        if path.is_file():
+            output.write(path, path.relative_to(repo_root))
+PY
 
 sha256="$(sha256sum "$archive" | awk '{print $1}')"
 gcloud storage cp "$archive" "gs://$bucket_name/$object"
