@@ -41,11 +41,18 @@ resource "google_project_iam_member" "orchestrator_worker_pool_user" {
   member  = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
 }
 
+# Every Infrastructure Manager deployment identity needs roles/config.agent in
+# the CI/CD project. This also permits access to Infra Manager's regional
+# blueprint-config bucket.
 resource "google_project_iam_member" "deployment_account_cicd_roles" {
   for_each = {
     for pair in setproduct(
       toset(["project_factory", "network_admin", "project_iam", "data_admin", "gke_admin", "lb_admin"]),
-      toset(["roles/cloudbuild.workerPoolUser", "roles/logging.logWriter"])
+      toset([
+        "roles/cloudbuild.workerPoolUser",
+        "roles/config.agent",
+        "roles/logging.logWriter",
+      ])
     ) : "${pair[0]}:${pair[1]}" => { account = pair[0], role = pair[1] }
   }
 
