@@ -4,6 +4,8 @@
 
 상세한 관리 경계, 기존 State 보호, 실행 계정과 단계별 책임은 [docs/architecture-and-operations.md](docs/architecture-and-operations.md)를 먼저 확인합니다.
 
+실제 실행은 [1차 VM Foundation / 2차 GCS JSON Cloud Run 실행 문서](docs/runbook-two-stage.md)를 따릅니다.
+
 ## 실행 원칙
 
 1. 승인과 값 확정은 포털에서 끝납니다.
