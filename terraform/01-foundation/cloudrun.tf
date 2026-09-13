@@ -41,6 +41,10 @@ resource "google_cloud_run_v2_service" "provisioner" {
         value = google_cloudbuild_trigger.sandbox_orchestrate.trigger_id
       }
       env {
+        name  = "WORKER_POOL"
+        value = google_cloudbuild_worker_pool.terraform.id
+      }
+      env {
         name  = "REQUEST_BUCKET"
         value = google_storage_bucket.requests.name
       }
