@@ -10,11 +10,11 @@ import tempfile
 import zipfile
 from pathlib import Path
 
-import requests
 from flask import Flask, jsonify, request
 from google.api_core.exceptions import PreconditionFailed
 from google.cloud import storage
 from google.cloud.devtools import cloudbuild_v1
+from google.protobuf.json_format import ParseDict
 from jsonschema import Draft202012Validator, FormatChecker
 
 app = Flask(__name__)
@@ -82,33 +82,29 @@ def validate_semantics(payload: dict) -> None:
         raise ValueError("shared_vpc_join cannot be true when network.required is false")
 
 
-def download_repository(repository: str, commit_sha: str, destination: Path) -> Path:
-    allowed_repository = os.environ.get("GITHUB_REPOSITORY", "sonmap/Gcp_Managed_GKE_GIT_ETC_09")
-    if repository != allowed_repository:
-        raise ValueError("repository is not allowed")
-
-    url = f"https://api.github.com/repos/{repository}/zipball/{commit_sha}"
-    headers = {"Accept": "application/vnd.github+json"}
-    token = os.environ.get("GITHUB_TOKEN", "")
-    if token:
-        headers["Authorization"] = f"Bearer {token}"
-    response = requests.get(url, headers=headers, timeout=60)
-    response.raise_for_status()
+def download_source_archive(source: dict, destination: Path) -> Path:
+    bucket_name, object_name = parse_gs_uri(source["archive_uri"])
+    if bucket_name != os.environ["BUNDLE_BUCKET"]:
+        raise ValueError("source archive must use the internal bundle bucket")
+    if not object_name.startswith("platform-releases/"):
+        raise ValueError("source archive must use platform-releases/")
+    blob = storage.Client().bucket(bucket_name).blob(
+        object_name, generation=int(source["generation"])
+    )
+    raw = blob.download_as_bytes()
+    actual_hash = hashlib.sha256(raw).hexdigest()
+    if not hmac.compare_digest(actual_hash, source["sha256"].lower()):
+        raise ValueError("source archive sha256 mismatch")
 
     destination.mkdir(parents=True, exist_ok=True)
-    with zipfile.ZipFile(io.BytesIO(response.content)) as archive:
+    with zipfile.ZipFile(io.BytesIO(raw)) as archive:
         base = destination.resolve()
         for member in archive.infolist():
             target = (destination / member.filename).resolve()
             if base not in target.parents and target != base:
-                raise ValueError("unsafe repository archive path")
+                raise ValueError("unsafe source archive path")
         archive.extractall(destination)
-
-    roots = [path for path in destination.iterdir() if path.is_dir()]
-    if len(roots) != 1:
-        raise ValueError("unexpected GitHub archive layout")
-    return roots[0]
-
+    return destination
 
 def stage_variables(payload: dict) -> dict[str, dict]:
     task = payload["task"]
@@ -180,16 +176,16 @@ def upload_immutable(blob, content: bytes, content_type: str) -> None:
 
 def assemble_bundles(payload: dict, raw_request: bytes) -> tuple[str, dict]:
     request_id = payload["request_id"]
-    commit_sha = payload["source"]["commit_sha"]
-    prefix = f"requests/{request_id}/{commit_sha}"
+    release_id = payload["source"]["release_id"]
+    prefix = f"requests/{request_id}/{release_id}"
     bucket = storage.Client().bucket(os.environ["BUNDLE_BUCKET"])
     variables = stage_variables(payload)
-    manifest = {"request_id": request_id, "commit_sha": commit_sha, "bundles": {}}
+    manifest = {"request_id": request_id, "release_id": release_id, "bundles": {}}
 
     with tempfile.TemporaryDirectory() as temp_dir:
         temp = Path(temp_dir)
-        repository_root = download_repository(payload["source"]["repository"], commit_sha, temp / "repo")
-        deployment_root = repository_root / "terraform" / "02-sandbox" / "deployments"
+        source_root = download_source_archive(payload["source"], temp / "source")
+        deployment_root = source_root / "terraform" / "02-sandbox" / "deployments"
         for stage, archive_name in STAGES.items():
             source = deployment_root / stage
             if not source.is_dir():
@@ -219,21 +215,46 @@ def assemble_bundles(payload: dict, raw_request: bytes) -> tuple[str, dict]:
 def start_build(payload: dict, request_uri: str, bundle_prefix: str):
     project = os.environ["GCP_PROJECT"]
     region = os.environ["GCP_REGION"]
-    source = cloudbuild_v1.RepoSource(
-        commit_sha=payload["source"]["commit_sha"],
-        substitutions={
-            "_ACTION": payload["action"].lower(), "_REQUEST_ID": payload["request_id"],
-            "_REQUEST_URI": request_uri, "_BUNDLE_PREFIX": bundle_prefix,
-            "_TASK_NAME": payload["task"]["name"], "_GKE_NAMESPACE": payload["gke"]["namespace"],
-        },
+    task = payload["task"]["name"]
+    worker_pool = os.environ["WORKER_POOL"]
+    service_account = f"projects/{project}/serviceAccounts/sa-sandbox-terraform@{project}.iam.gserviceaccount.com"
+    script = """set -euo pipefail
+apply_stage() {
+  local name="$1" archive="$2" account="$3"
+  gcloud infra-manager deployments apply \
+    "projects/$PROJECT_ID/locations/$LOCATION/deployments/im-$TASK-$name" \
+    --service-account="projects/$PROJECT_ID/serviceAccounts/$account" \
+    --gcs-source="$BUNDLE_PREFIX/$archive" \
+    --worker-pool="$WORKER_POOL" \
+    --annotations="request_id=$REQUEST_ID,task=$TASK" \
+    --quiet
+}
+apply_stage project project.zip "sa-im-project-factory@$PROJECT_ID.iam.gserviceaccount.com"
+apply_stage network network.zip "sa-im-network-admin@$PROJECT_ID.iam.gserviceaccount.com"
+apply_stage project-iam project-iam.zip "sa-im-project-iam@$PROJECT_ID.iam.gserviceaccount.com"
+apply_stage data data.zip "sa-im-data-admin@$PROJECT_ID.iam.gserviceaccount.com"
+apply_stage gke gke-jupyter.zip "sa-im-gke-admin@$PROJECT_ID.iam.gserviceaccount.com"
+"""
+    build_spec = {
+        "steps": [{
+            "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
+            "entrypoint": "bash",
+            "args": ["-ceu", script],
+            "env": [
+                f"BUNDLE_PREFIX={bundle_prefix}",
+                f"REQUEST_ID={payload['request_id']}",
+                f"TASK={task}",
+                f"WORKER_POOL={worker_pool}",
+            ],
+        }],
+        "options": {"logging": "CLOUD_LOGGING_ONLY", "pool": {"name": worker_pool}},
+        "serviceAccount": service_account,
+        "timeout": "14400s",
+    }
+    build = ParseDict(build_spec, cloudbuild_v1.Build())
+    return cloudbuild_v1.CloudBuildClient().create_build(
+        project_id=project, build=build
     )
-    return cloudbuild_v1.CloudBuildClient().run_build_trigger(
-        request=cloudbuild_v1.RunBuildTriggerRequest(
-            name=f"projects/{project}/locations/{region}/triggers/{os.environ['BUILD_TRIGGER_ID']}",
-            source=source,
-        )
-    )
-
 
 def start_build_once(payload: dict, request_uri: str, bundle_prefix: str) -> tuple[str, bool]:
     bucket_name, prefix = parse_gs_uri(bundle_prefix)
