@@ -1,3 +1,4 @@
+variable "create_project" { type = bool }
 variable "project_id" { type = string }
 variable "project_name" { type = string }
 variable "folder_id" { type = string }
