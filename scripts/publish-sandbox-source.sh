@@ -29,10 +29,30 @@ repo_root = pathlib.Path(sys.argv[1])
 archive = pathlib.Path(sys.argv[2])
 source = repo_root / "terraform" / "02-sandbox" / "deployments"
 
+excluded_dirs = {".terraform", "__pycache__"}
+excluded_names = {
+    ".terraform.lock.hcl",
+    ".terraform.tfstate.lock.info",
+    "crash.log",
+    "terraform.tfvars",
+    "terraform.auto.tfvars.json",
+}
+excluded_suffixes = (".tfplan", ".tfstate", ".tfstate.backup")
+
 with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as output:
     for path in sorted(source.rglob("*")):
-        if path.is_file():
-            output.write(path, path.relative_to(repo_root))
+        relative = path.relative_to(source)
+        if any(part in excluded_dirs for part in relative.parts):
+            continue
+        if not path.is_file():
+            continue
+        if path.name in excluded_names:
+            continue
+        if path.name.endswith(excluded_suffixes):
+            continue
+        if path.name.endswith(".auto.tfvars") or path.name.endswith(".auto.tfvars.json"):
+            continue
+        output.write(path, path.relative_to(repo_root))
 PY
 
 sha256="$(sha256sum "$archive" | awk '{print $1}')"
