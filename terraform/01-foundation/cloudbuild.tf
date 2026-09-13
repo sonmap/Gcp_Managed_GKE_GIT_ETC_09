@@ -59,7 +59,10 @@ resource "terraform_data" "provisioner_image" {
         --quiet
     EOT
   }
-  depends_on = [google_artifact_registry_repository.platform]
+  depends_on = [
+    google_artifact_registry_repository.platform,
+    google_storage_bucket_iam_member.cloud_build_reads_staged_source,
+  ]
 }
 
 resource "google_cloudbuild_trigger" "sandbox_orchestrate" {
