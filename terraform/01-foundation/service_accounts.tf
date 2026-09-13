@@ -15,6 +15,19 @@ locals {
   }
 }
 
+# The VM execution identity needs these two bootstrap roles to create the
+# request/bundle buckets and Secret Manager secrets in the CI/CD project.
+resource "google_project_iam_member" "foundation_executor_bootstrap_roles" {
+  for_each = toset([
+    "roles/storage.admin",
+    "roles/secretmanager.admin",
+  ])
+
+  project = var.cicd_project_id
+  role    = each.value
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
 resource "google_project_iam_member" "orchestrator_worker_pool_user" {
   project = var.cicd_project_id
   role    = "roles/cloudbuild.workerPoolUser"
