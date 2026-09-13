@@ -11,6 +11,7 @@ import zipfile
 from pathlib import Path
 
 from flask import Flask, jsonify, request
+from google.api_core.client_options import ClientOptions
 from google.api_core.exceptions import PreconditionFailed
 from google.cloud import storage
 from google.cloud.devtools import cloudbuild_v1
@@ -249,9 +250,12 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
         "timeout": "14400s",
     }
     build = cloudbuild_v1.Build(build_spec)
-    return cloudbuild_v1.CloudBuildClient().create_build(
-        project_id=project, build=build
+    client = cloudbuild_v1.CloudBuildClient(
+        client_options=ClientOptions(
+            api_endpoint=f"{region}-cloudbuild.googleapis.com"
+        )
     )
+    return client.create_build(project_id=project, build=build)
 
 def start_build_once(payload: dict, request_uri: str, bundle_prefix: str) -> tuple[str, bool]:
     bucket_name, prefix = parse_gs_uri(bundle_prefix)
