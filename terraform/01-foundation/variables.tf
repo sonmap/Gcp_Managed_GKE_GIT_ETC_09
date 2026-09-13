@@ -64,9 +64,3 @@ variable "jupyter_chart_version" {
   type    = string
   default = "4.2.0"
 }
-
-variable "existing_sandbox_project_ids" {
-  description = "Approved existing projects prepared for sandbox data resources"
-  type        = set(string)
-  default     = ["pjt-net-hub-base"]
-}
