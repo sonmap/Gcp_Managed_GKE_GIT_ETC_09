@@ -1,3 +1,21 @@
+
+locals {
+  cloudrun_subnet_name = element(reverse(split("/", var.cloudrun_subnet_self_link)), 0)
+}
+
+# In Shared VPC, Cloud Run's Google-managed service agent must be allowed to
+# attach its Direct VPC Egress interface to the host-project subnet.
+resource "google_compute_subnetwork_iam_member" "cloud_run_service_agent_network_user" {
+  provider   = google.host
+  project    = var.shared_vpc_host_project_id
+  region     = var.region
+  subnetwork = local.cloudrun_subnet_name
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:service-${data.google_project.cicd.number}@serverless-robot-prod.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.cicd["run.googleapis.com"]]
+}
+
 resource "google_cloud_run_v2_service" "provisioner" {
   project  = var.cicd_project_id
   name     = "run-sandbox-provisioner"
@@ -43,7 +61,10 @@ resource "google_cloud_run_v2_service" "provisioner" {
       egress = "PRIVATE_RANGES_ONLY"
     }
   }
-  depends_on = [terraform_data.provisioner_image]
+  depends_on = [
+    terraform_data.provisioner_image,
+    google_compute_subnetwork_iam_member.cloud_run_service_agent_network_user,
+  ]
 }
 
 resource "google_cloud_run_v2_service_iam_member" "provisioner_invoker" {
