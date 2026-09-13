@@ -47,8 +47,9 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["project_id", "project_name", "folder_id", "billing_account"],
+      "required": ["create_project", "project_id", "project_name", "folder_id", "billing_account"],
       "properties": {
+        "create_project": { "type": "boolean" },
         "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$" },
         "project_name": { "type": "string", "minLength": 3, "maxLength": 30 },
         "folder_id": { "type": "string", "pattern": "^[0-9]+$" },
