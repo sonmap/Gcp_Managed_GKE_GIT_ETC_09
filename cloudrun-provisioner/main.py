@@ -127,7 +127,8 @@ def stage_variables(payload: dict) -> dict[str, dict]:
             "data_admin_service_account": f"sa-im-data-admin@{cicd_project}.iam.gserviceaccount.com",
         },
         "20-network": {
-            "network_required": network["required"], "create_subnet": network.get("create_subnet", True),\n            "host_project_id": network["host_project_id"],
+            "network_required": network["required"], "create_subnet": network.get("create_subnet", True),
+            "host_project_id": network["host_project_id"],
             "service_project_id": project["project_id"], "network_name": network["network_name"],
             "region": network["region"], "subnet_name": network.get("subnet_name") or "",
             "subnet_cidr": network.get("subnet_cidr") or "",
