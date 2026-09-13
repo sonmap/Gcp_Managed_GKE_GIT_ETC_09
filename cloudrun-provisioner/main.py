@@ -249,7 +249,7 @@ apply_stage gke gke-jupyter.zip "sa-im-gke-admin@$PROJECT_ID.iam.gserviceaccount
             ],
         }],
         "options": {"logging": "CLOUD_LOGGING_ONLY", "pool": {"name": worker_pool}},
-        "serviceAccount": service_account,
+        "service_account": service_account,
         "timeout": "14400s",
     }
     build = cloudbuild_v1.Build(build_spec)
