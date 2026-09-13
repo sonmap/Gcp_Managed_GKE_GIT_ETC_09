@@ -121,7 +121,7 @@ def stage_variables(payload: dict) -> dict[str, dict]:
         "10-project": {
             "create_project": project["create_project"],
             "project_id": project["project_id"], "project_name": project["project_name"],
-            "folder_id": project["folder_id"], "billing_account": project["billing_account"],
+            "folder_id": project.get("folder_id"), "billing_account": project.get("billing_account"),
             "task_name": task_name, "expires_on": task["expires_on"], "region": network["region"],
             "project_iam_service_account": f"sa-im-project-iam@{cicd_project}.iam.gserviceaccount.com",
             "data_admin_service_account": f"sa-im-data-admin@{cicd_project}.iam.gserviceaccount.com",
