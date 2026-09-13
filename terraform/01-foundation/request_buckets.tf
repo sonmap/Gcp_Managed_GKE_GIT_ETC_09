@@ -72,7 +72,7 @@ resource "google_storage_bucket_iam_member" "deployment_accounts_read_bundles" {
 resource "google_storage_bucket_iam_member" "infra_manager_service_agent_reads_bundles" {
   bucket = google_storage_bucket.bundles.name
   role   = "roles/storage.objectViewer"
-  member = "serviceAccount:${google_project_service_identity.infra_manager.email}"
+  member = "serviceAccount:service-${data.google_project.cicd.number}@gcp-sa-config.iam.gserviceaccount.com"
 
-  depends_on = [google_project_service_identity.infra_manager]
+  depends_on = [terraform_data.infra_manager_service_identity]
 }
