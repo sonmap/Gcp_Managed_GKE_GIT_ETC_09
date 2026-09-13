@@ -10,6 +10,7 @@ locals {
   automation_source_hash = sha256(join("", [
     filesha256("${path.module}/../../automation-runner/Dockerfile"),
     filesha256("${path.module}/../../automation-runner/requirements.txt"),
+    filesha256("${path.module}/../../automation-runner/apply_gke_workload.py"),
   ]))
 }
 
