@@ -245,7 +245,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
             "entrypoint": "bash",
             "args": ["-ceu", script],
         }],
-        "options": {"logging": "CLOUD_LOGGING_ONLY", "pool": {"name": worker_pool}},
+        "options": {"logging": "CLOUD_LOGGING_ONLY"},
         "service_account": service_account,
         "timeout": "14400s",
     }
