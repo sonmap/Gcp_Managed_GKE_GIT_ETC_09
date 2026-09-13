@@ -14,3 +14,12 @@ resource "google_storage_bucket_iam_member" "terraform_state" {
   role   = "roles/storage.objectAdmin"
   member = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
 }
+
+# Cloud Build uses the project's Compute Engine default service account in this
+# environment. It must read the source archive staged in the regional state
+# bucket before it can build either automation image.
+resource "google_storage_bucket_iam_member" "cloud_build_reads_staged_source" {
+  bucket = google_storage_bucket.terraform_state.name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${data.google_project.cicd.number}-compute@developer.gserviceaccount.com"
+}
