@@ -47,14 +47,20 @@
     "project": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["create_project", "project_id", "project_name", "folder_id", "billing_account"],
+      "required": ["create_project", "project_id", "project_name"],
       "properties": {
         "create_project": { "type": "boolean" },
         "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$" },
         "project_name": { "type": "string", "minLength": 3, "maxLength": 30 },
         "folder_id": { "type": "string", "pattern": "^[0-9]+$" },
         "billing_account": { "type": "string", "pattern": "^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$" }
-      }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "create_project": { "const": true } }, "required": ["create_project"] },
+          "then": { "required": ["folder_id", "billing_account"] }
+        }
+      ]
     },
     "network": {
       "type": "object",
