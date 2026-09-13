@@ -234,6 +234,8 @@ apply_stage project-iam project-iam.zip "sa-im-project-iam@$PROJECT_ID.iam.gserv
 apply_stage data data.zip "sa-im-data-admin@$PROJECT_ID.iam.gserviceaccount.com"
 apply_stage gke gke-jupyter.zip "sa-im-gke-admin@$PROJECT_ID.iam.gserviceaccount.com"
 """
+    # Cloud Build treats $NAME as a substitution. Keep shell variables intact.
+    script = script.replace("$", "$")
     build_spec = {
         "steps": [{
             "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
