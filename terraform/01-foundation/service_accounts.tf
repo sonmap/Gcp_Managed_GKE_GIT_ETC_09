@@ -67,6 +67,12 @@ resource "google_project_iam_member" "api_build_editor" {
   member  = "serviceAccount:${google_service_account.automation["api"].email}"
 }
 
+resource "google_project_iam_member" "api_worker_pool_user" {
+  project = var.cicd_project_id
+  role    = "roles/cloudbuild.workerPoolUser"
+  member  = "serviceAccount:${google_service_account.automation["api"].email}"
+}
+
 resource "google_service_account_iam_member" "api_uses_orchestrator" {
   service_account_id = google_service_account.automation["orchestrator"].name
   role               = "roles/iam.serviceAccountUser"
