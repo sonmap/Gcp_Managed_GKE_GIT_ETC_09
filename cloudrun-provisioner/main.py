@@ -235,6 +235,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
             f"--service-account=\"projects/{project}/serviceAccounts/{account_email}\" "
             f"--gcs-source=\"{bundle_prefix}/{archive}\" "
             f"--worker-pool=\"{worker_pool}\" "
+            "--provider-source=SERVICE_MAINTAINED "
             f"--annotations=\"request_id={request_id},task={task}\" "
             "--quiet"
         )
