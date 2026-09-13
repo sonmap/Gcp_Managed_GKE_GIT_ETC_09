@@ -29,6 +29,10 @@ resource "google_cloud_run_v2_service" "provisioner" {
     containers {
       image = local.provisioner_image_uri
       env {
+        name  = "PROVISIONER_SOURCE_VERSION"
+        value = local.provisioner_source_hash
+      }
+      env {
         name  = "GCP_PROJECT"
         value = var.cicd_project_id
       }
