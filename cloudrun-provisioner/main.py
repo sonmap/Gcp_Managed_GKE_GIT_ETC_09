@@ -241,6 +241,8 @@ apply_stage gke gke-jupyter.zip "sa-im-gke-admin@$PROJECT_ID.iam.gserviceaccount
             "entrypoint": "bash",
             "args": ["-ceu", script],
             "env": [
+                f"PROJECT_ID={project}",
+                f"LOCATION={region}",
                 f"BUNDLE_PREFIX={bundle_prefix}",
                 f"REQUEST_ID={payload['request_id']}",
                 f"TASK={task}",
