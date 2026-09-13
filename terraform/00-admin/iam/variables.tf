@@ -3,6 +3,12 @@ variable "shared_vpc_host_project_id" {
   default = "pjt-d-shared-base"
 }
 
+variable "shared_vpc_admin_folder_id" {
+  description = "Common folder containing the Shared VPC host and approved service project."
+  type        = string
+  default     = "154455658682"
+}
+
 variable "region" {
   type    = string
   default = "asia-northeast3"
@@ -29,4 +35,10 @@ variable "project_factory_service_account" {
   description = "Infrastructure Manager identity that prepares an existing sandbox project."
   type        = string
   default     = "sa-im-project-factory@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
+variable "network_admin_service_account" {
+  description = "Infrastructure Manager identity that creates Shared VPC subnets and service-project associations."
+  type        = string
+  default     = "sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 }
