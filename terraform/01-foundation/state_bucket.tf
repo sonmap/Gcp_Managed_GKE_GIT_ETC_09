@@ -12,6 +12,5 @@ resource "google_storage_bucket" "terraform_state" {
 resource "google_storage_bucket_iam_member" "terraform_state" {
   bucket = google_storage_bucket.terraform_state.name
   role   = "roles/storage.objectAdmin"
-  member = "serviceAccount:${google_service_account.terraform.email}"
+  member = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
 }
-

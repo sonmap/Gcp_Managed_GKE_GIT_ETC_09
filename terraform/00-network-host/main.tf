@@ -30,25 +30,25 @@ resource "google_service_networking_connection" "private_service_access" {
   reserved_peering_ranges = [google_compute_global_address.cloudbuild_psa.name]
 }
 resource "google_compute_subnetwork" "task" {
-  project = var.shared_vpc_host_project_id
-  name = "subnet-${var.task_name}-an3"
-  region = var.region
-  network = data.google_compute_network.shared.id
-  ip_cidr_range = var.task_subnet_cidr
+  project                  = var.shared_vpc_host_project_id
+  name                     = "subnet-${var.task_name}-an3"
+  region                   = var.region
+  network                  = data.google_compute_network.shared.id
+  ip_cidr_range            = var.task_subnet_cidr
   private_ip_google_access = true
   lifecycle {
     precondition {
-      condition = tonumber(split("/", var.task_subnet_cidr)[1]) == 24
+      condition     = tonumber(split("/", var.task_subnet_cidr)[1]) == 24
       error_message = "task_subnet_cidr must be /24."
     }
   }
 }
 resource "google_compute_subnetwork_iam_member" "task_vm" {
-  project = var.shared_vpc_host_project_id
-  region = var.region
+  project    = var.shared_vpc_host_project_id
+  region     = var.region
   subnetwork = google_compute_subnetwork.task.name
-  role = "roles/compute.networkUser"
-  member = "serviceAccount:${var.task_vm_service_account_email}"
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:${var.task_vm_service_account_email}"
 }
 resource "google_compute_firewall" "health_checks_to_pods" {
   project = var.shared_vpc_host_project_id

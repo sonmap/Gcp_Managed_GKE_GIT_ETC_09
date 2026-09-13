@@ -5,11 +5,10 @@ resource "google_cloud_run_v2_service" "provisioner" {
   ingress  = var.provisioner_ingress
 
   template {
-    service_account = google_service_account.provisioner.email
-
+    service_account = google_service_account.automation["api"].email
+    timeout         = "300s"
     containers {
       image = local.provisioner_image_uri
-
       env {
         name  = "GCP_PROJECT"
         value = var.cicd_project_id
@@ -19,31 +18,22 @@ resource "google_cloud_run_v2_service" "provisioner" {
         value = var.region
       }
       env {
-        name  = "WORKER_POOL"
-        value = google_cloudbuild_worker_pool.terraform.id
+        name  = "BUILD_TRIGGER_ID"
+        value = google_cloudbuild_trigger.sandbox_orchestrate.trigger_id
       }
       env {
-        name  = "STATE_BUCKET"
-        value = var.state_bucket_name
+        name  = "REQUEST_BUCKET"
+        value = google_storage_bucket.requests.name
+      }
+      env {
+        name  = "BUNDLE_BUCKET"
+        value = google_storage_bucket.bundles.name
       }
       env {
         name  = "GITHUB_REPOSITORY"
         value = "${var.github_owner}/${var.github_repository}"
       }
-      env {
-        name  = "GITHUB_BRANCH"
-        value = var.github_branch
-      }
-      env {
-        name  = "BUILD_TRIGGER_ID"
-        value = google_cloudbuild_trigger.sandbox_dispatch.trigger_id
-      }
-      env {
-        name  = "JUPYTER_DOMAIN"
-        value = var.jupyter_domain
-      }
     }
-
     vpc_access {
       network_interfaces {
         network    = var.shared_vpc_network_self_link
@@ -53,7 +43,6 @@ resource "google_cloud_run_v2_service" "provisioner" {
       egress = "PRIVATE_RANGES_ONLY"
     }
   }
-
   depends_on = [terraform_data.provisioner_image]
 }
 
@@ -62,5 +51,5 @@ resource "google_cloud_run_v2_service_iam_member" "provisioner_invoker" {
   location = var.region
   name     = google_cloud_run_v2_service.provisioner.name
   role     = "roles/run.invoker"
-  member   = "group:${var.provisioner_invoker_group_email}"
+  member   = "serviceAccount:${google_service_account.automation["portal"].email}"
 }

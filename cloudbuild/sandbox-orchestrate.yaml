@@ -1,0 +1,142 @@
+steps:
+  - name: ${_AUTOMATION_IMAGE}
+    id: fetch-approved-request
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        gcloud storage cp "${_BUNDLE_PREFIX}/approved-request.json" /workspace/request.json
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: sync-google-group
+    entrypoint: bash
+    secretEnv:
+      - GOOGLE_WORKSPACE_DWD_KEY
+    env:
+      - GOOGLE_WORKSPACE_ADMIN_SUBJECT=${_WORKSPACE_ADMIN_SUBJECT}
+    args:
+      - -ceu
+      - |
+        python scripts/group_upsert.py /workspace/request.json
+        echo "Waiting for the new Google Group to propagate to Google Cloud IAM..."
+        sleep 60
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: apply-infrastructure-manager
+    entrypoint: bash
+    env:
+      - ACTION=${_ACTION}
+      - REQUEST_ID=${_REQUEST_ID}
+      - REQUEST_FILE=/workspace/request.json
+      - BUNDLE_PREFIX=${_BUNDLE_PREFIX}
+      - IM_PROJECT_ID=$PROJECT_ID
+      - IM_REGION=$LOCATION
+      - IM_WORKER_POOL=${_WORKER_POOL}
+      - IM_PROJECT_FACTORY_SA=${_PROJECT_FACTORY_SA}
+      - IM_NETWORK_ADMIN_SA=${_NETWORK_ADMIN_SA}
+      - IM_PROJECT_IAM_SA=${_PROJECT_IAM_SA}
+      - IM_DATA_ADMIN_SA=${_DATA_ADMIN_SA}
+      - IM_GKE_ADMIN_SA=${_GKE_ADMIN_SA}
+    args:
+      - scripts/run_infra_manager.sh
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: write-kubeconfig
+    entrypoint: python3
+    env:
+      - GKE_ADMIN_SA=${_GKE_ADMIN_SA}
+    args: [scripts/write_kubeconfig.py, /workspace/request.json, /workspace/kubeconfig.json]
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: render-jupyter-values
+    entrypoint: python3
+    secretEnv:
+      - JUPYTER_OAUTH_CLIENT_ID
+      - JUPYTER_OAUTH_CLIENT_SECRET
+    args: [scripts/render_jupyter_values.py, /workspace/request.json, /workspace/jupyter-values.json]
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: deploy-jupyterhub
+    env:
+      - KUBECONFIG=/workspace/kubeconfig.json
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        gcloud auth print-access-token | helm registry login \
+          "${LOCATION}-docker.pkg.dev" \
+          --username oauth2accesstoken \
+          --password-stdin
+        helm upgrade --install "jupyterhub-${_TASK_NAME}" "${_JUPYTER_CHART}" \
+          --version="${_JUPYTER_CHART_VERSION}" \
+          --namespace="${_GKE_NAMESPACE}" \
+          --values=/workspace/jupyter-values.json \
+          --atomic --wait --timeout=15m
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: prepare-loadbalancer-bundle
+    entrypoint: bash
+    env:
+      - LB_ADMIN_SA=${_LB_ADMIN_SA}
+    args:
+      - -ceu
+      - |
+        gcloud storage cp "${_BUNDLE_PREFIX}/loadbalancer-template.zip" /workspace/lb-template.zip
+        for attempt in $(seq 1 30); do
+          if python3 scripts/prepare_lb_bundle.py /workspace/request.json /workspace/lb-template.zip /workspace/loadbalancer.zip; then
+            break
+          fi
+          if [ "$attempt" -eq 30 ]; then exit 1; fi
+          sleep 10
+        done
+        gcloud storage cp /workspace/loadbalancer.zip "${_BUNDLE_PREFIX}/loadbalancer.zip"
+
+  - name: ${_AUTOMATION_IMAGE}
+    id: apply-loadbalancer
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        task_name="$(python3 -c 'import json; print(json.load(open("/workspace/request.json"))["task"]["name"])')"
+        gcloud infra-manager deployments apply \
+          "projects/$PROJECT_ID/locations/$LOCATION/deployments/im-${task_name}-lb" \
+          --service-account="projects/$PROJECT_ID/serviceAccounts/${_LB_ADMIN_SA}" \
+          --gcs-source="${_BUNDLE_PREFIX}/loadbalancer.zip" \
+          --worker-pool="${_WORKER_POOL}" \
+          --annotations="request_id=${_REQUEST_ID},task=${task_name}" \
+          --quiet
+
+substitutions:
+  _ACTION: create
+  _REQUEST_ID: REPLACE_REQUEST_ID
+  _REQUEST_URI: gs://REPLACE/approved-request.json
+  _BUNDLE_PREFIX: gs://REPLACE/requests/REPLACE_REQUEST_ID/REPLACE_SHA
+  _TASK_NAME: sbx01
+  _GKE_NAMESPACE: sbx01
+  _WORKER_POOL: projects/prj-b-cicd-local-236d/locations/asia-northeast3/workerPools/pool-sandbox-terraform
+  _WORKSPACE_ADMIN_SUBJECT: admin@sonmap.net
+  _PROJECT_FACTORY_SA: sa-im-project-factory@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _NETWORK_ADMIN_SA: sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _PROJECT_IAM_SA: sa-im-project-iam@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _DATA_ADMIN_SA: sa-im-data-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _GKE_ADMIN_SA: sa-im-gke-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _LB_ADMIN_SA: sa-im-lb-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _JUPYTER_CHART: oci://asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/jupyterhub
+  _JUPYTER_CHART_VERSION: 4.2.0
+  _AUTOMATION_IMAGE: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/sandbox-automation-runner:latest
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/$PROJECT_ID/secrets/google-workspace-dwd-key/versions/latest
+      env: GOOGLE_WORKSPACE_DWD_KEY
+    - versionName: projects/$PROJECT_ID/secrets/jupyter-oauth-client-id/versions/latest
+      env: JUPYTER_OAUTH_CLIENT_ID
+    - versionName: projects/$PROJECT_ID/secrets/jupyter-oauth-client-secret/versions/latest
+      env: JUPYTER_OAUTH_CLIENT_SECRET
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  pool:
+    name: ${_WORKER_POOL}
+
+timeout: 14400s
