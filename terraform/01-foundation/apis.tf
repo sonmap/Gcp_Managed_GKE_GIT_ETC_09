@@ -24,3 +24,13 @@ resource "google_project_service" "gke" {
   service            = each.value
   disable_on_destroy = false
 }
+
+
+# Create the Infrastructure Manager service agent before assigning it access
+# to sandbox bundles.
+resource "google_project_service_identity" "infra_manager" {
+  project = var.cicd_project_id
+  service = "config.googleapis.com"
+
+  depends_on = [google_project_service.cicd["config.googleapis.com"]]
+}
