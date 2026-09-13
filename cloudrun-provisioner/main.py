@@ -222,13 +222,19 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
     deployment_key = hashlib.sha256(payload["project"]["project_id"].encode()).hexdigest()[:8]
     worker_pool = os.environ["WORKER_POOL"]
     service_account = f"projects/{project}/serviceAccounts/sa-sandbox-terraform@{project}.iam.gserviceaccount.com"
+
+    # Infrastructure Manager manages Google Cloud resources only. Kubernetes
+    # objects are applied by a separate Cloud Build running in the private pool.
     stages = [
         ("project", "project.zip", "sa-im-project-factory"),
-        ("network", "network.zip", "sa-im-network-admin"),
+    ]
+    if payload["network"]["required"]:
+        stages.append(("network", "network.zip", "sa-im-network-admin"))
+    stages.extend([
         ("project-iam", "project-iam.zip", "sa-im-project-iam"),
         ("data", "data.zip", "sa-im-data-admin"),
-        ("gke", "gke-jupyter.zip", "sa-im-gke-admin"),
-    ]
+    ])
+
     commands = ["set -euo pipefail"]
     for name, archive, account_id in stages:
         account_email = f"{account_id}@{project}.iam.gserviceaccount.com"
@@ -242,13 +248,58 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
             f"--annotations=\"request_id={request_id},task={task}\" "
             "--quiet"
         )
-    script = "\n".join(commands)
-    build_spec = {
+
+    automation_image = (
+        f"{region}-docker.pkg.dev/{project}/ar-sandbox-platform/"
+        "sandbox-automation-runner:latest"
+    )
+    child_build = {
         "steps": [{
-            "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
-            "entrypoint": "bash",
-            "args": ["-ceu", script],
+            "name": automation_image,
+            "entrypoint": "python3",
+            "args": [
+                "/opt/sandbox/apply_gke_workload.py",
+                f"{bundle_prefix}/approved-request.json",
+            ],
+            "env": [
+                f"CICD_PROJECT_ID={project}",
+                f"GCP_REGION={region}",
+                f"GKE_ADMIN_SA=sa-im-gke-admin@{project}.iam.gserviceaccount.com",
+                f"JUPYTER_CHART_URI={os.environ['JUPYTER_CHART_URI']}",
+                f"JUPYTER_CHART_VERSION={os.environ['JUPYTER_CHART_VERSION']}",
+            ],
         }],
+        "options": {
+            "logging": "CLOUD_LOGGING_ONLY",
+            "pool": {"name": worker_pool},
+        },
+        "serviceAccount": service_account,
+        "timeout": "1800s",
+    }
+    child_config = json.dumps(child_build)
+    gke_command = (
+        "set -euo pipefail\n"
+        "cat > /workspace/gke-build.json <<'JSON'\n"
+        f"{child_config}\n"
+        "JSON\n"
+        f"gcloud builds submit --no-source "
+        f"--config=/workspace/gke-build.json --project={project} "
+        f"--region={region} --quiet"
+    )
+
+    build_spec = {
+        "steps": [
+            {
+                "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
+                "entrypoint": "bash",
+                "args": ["-ceu", "\n".join(commands)],
+            },
+            {
+                "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
+                "entrypoint": "bash",
+                "args": ["-ceu", gke_command],
+            },
+        ],
         "options": {"logging": "CLOUD_LOGGING_ONLY"},
         "service_account": service_account,
         "timeout": "14400s",
