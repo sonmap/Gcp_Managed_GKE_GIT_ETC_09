@@ -28,6 +28,13 @@ resource "google_project_iam_member" "foundation_executor_bootstrap_roles" {
   member  = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
+# The VM execution identity creates the Cloud Build trigger during foundation.
+resource "google_project_iam_member" "foundation_executor_cloud_build_editor" {
+  project = var.cicd_project_id
+  role    = "roles/cloudbuild.builds.editor"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
 resource "google_project_iam_member" "orchestrator_worker_pool_user" {
   project = var.cicd_project_id
   role    = "roles/cloudbuild.workerPoolUser"
