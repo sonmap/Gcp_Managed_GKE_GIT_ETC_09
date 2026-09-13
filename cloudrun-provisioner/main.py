@@ -215,40 +215,34 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
     project = os.environ["GCP_PROJECT"]
     region = os.environ["GCP_REGION"]
     task = payload["task"]["name"]
+    request_id = payload["request_id"]
     worker_pool = os.environ["WORKER_POOL"]
     service_account = f"projects/{project}/serviceAccounts/sa-sandbox-terraform@{project}.iam.gserviceaccount.com"
-    script = """set -euo pipefail
-apply_stage() {
-  local name="$1" archive="$2" account="$3"
-  gcloud infra-manager deployments apply \
-    "projects/$PROJECT_ID/locations/$LOCATION/deployments/im-$TASK-$name" \
-    --service-account="projects/$PROJECT_ID/serviceAccounts/$account" \
-    --gcs-source="$BUNDLE_PREFIX/$archive" \
-    --worker-pool="$WORKER_POOL" \
-    --annotations="request_id=$REQUEST_ID,task=$TASK" \
-    --quiet
-}
-apply_stage project project.zip "sa-im-project-factory@$PROJECT_ID.iam.gserviceaccount.com"
-apply_stage network network.zip "sa-im-network-admin@$PROJECT_ID.iam.gserviceaccount.com"
-apply_stage project-iam project-iam.zip "sa-im-project-iam@$PROJECT_ID.iam.gserviceaccount.com"
-apply_stage data data.zip "sa-im-data-admin@$PROJECT_ID.iam.gserviceaccount.com"
-apply_stage gke gke-jupyter.zip "sa-im-gke-admin@$PROJECT_ID.iam.gserviceaccount.com"
-"""
-    # Cloud Build treats $NAME as a substitution. Keep shell variables intact.
-    script = script.replace("$", "$")
+    stages = [
+        ("project", "project.zip", "sa-im-project-factory"),
+        ("network", "network.zip", "sa-im-network-admin"),
+        ("project-iam", "project-iam.zip", "sa-im-project-iam"),
+        ("data", "data.zip", "sa-im-data-admin"),
+        ("gke", "gke-jupyter.zip", "sa-im-gke-admin"),
+    ]
+    commands = ["set -euo pipefail"]
+    for name, archive, account_id in stages:
+        account_email = f"{account_id}@{project}.iam.gserviceaccount.com"
+        commands.append(
+            "gcloud infra-manager deployments apply "
+            f"\"projects/{project}/locations/{region}/deployments/im-{task}-{name}\" "
+            f"--service-account=\"projects/{project}/serviceAccounts/{account_email}\" "
+            f"--gcs-source=\"{bundle_prefix}/{archive}\" "
+            f"--worker-pool=\"{worker_pool}\" "
+            f"--annotations=\"request_id={request_id},task={task}\" "
+            "--quiet"
+        )
+    script = "\n".join(commands)
     build_spec = {
         "steps": [{
             "name": "gcr.io/google.com/cloudsdktool/cloud-sdk:slim",
             "entrypoint": "bash",
             "args": ["-ceu", script],
-            "env": [
-                f"PROJECT_ID={project}",
-                f"LOCATION={region}",
-                f"BUNDLE_PREFIX={bundle_prefix}",
-                f"REQUEST_ID={payload['request_id']}",
-                f"TASK={task}",
-                f"WORKER_POOL={worker_pool}",
-            ],
         }],
         "options": {"logging": "CLOUD_LOGGING_ONLY", "pool": {"name": worker_pool}},
         "service_account": service_account,
