@@ -8,8 +8,29 @@ data "google_compute_network" "shared" {
   name    = var.network_name
 }
 
+data "google_compute_subnetwork" "existing" {
+  count = var.network_required && !var.create_subnet ? 1 : 0
+
+  project = var.host_project_id
+  name    = var.subnet_name
+  region  = var.region
+}
+
+resource "terraform_data" "validate_existing_subnet" {
+  count = var.network_required && !var.create_subnet ? 1 : 0
+
+  input = data.google_compute_subnetwork.existing[0].self_link
+
+  lifecycle {
+    precondition {
+      condition     = data.google_compute_subnetwork.existing[0].ip_cidr_range == var.subnet_cidr
+      error_message = "Existing subnet CIDR does not match the approved subnet_cidr."
+    }
+  }
+}
+
 resource "google_compute_subnetwork" "sandbox" {
-  count = var.network_required ? 1 : 0
+  count = var.network_required && var.create_subnet ? 1 : 0
 
   project                  = var.host_project_id
   name                     = var.subnet_name
@@ -38,5 +59,9 @@ resource "google_compute_shared_vpc_service_project" "sandbox" {
 }
 
 output "subnet_self_link" {
-  value = var.network_required ? google_compute_subnetwork.sandbox[0].self_link : null
+  value = !var.network_required ? null : (
+    var.create_subnet
+    ? google_compute_subnetwork.sandbox[0].self_link
+    : data.google_compute_subnetwork.existing[0].self_link
+  )
 }
