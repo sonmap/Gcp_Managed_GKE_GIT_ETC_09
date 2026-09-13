@@ -1,4 +1,8 @@
 variable "network_required" { type = bool }
+variable "create_subnet" {
+  type    = bool
+  default = true
+}
 variable "host_project_id" { type = string }
 variable "service_project_id" { type = string }
 variable "network_name" { type = string }
