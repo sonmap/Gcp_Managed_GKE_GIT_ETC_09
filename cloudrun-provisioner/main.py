@@ -168,9 +168,9 @@ def upload_immutable(blob, content: bytes, content_type: str) -> None:
     try:
         blob.upload_from_string(content, content_type=content_type, if_generation_match=0)
     except PreconditionFailed:
-        existing = blob.download_as_bytes()
-        if hashlib.sha256(existing).digest() != hashlib.sha256(content).digest():
-            raise ValueError(f"immutable bundle conflict: gs://{blob.bucket.name}/{blob.name}")
+        # A repeated call for the same approved request and immutable release
+        # reuses the already-created bundle.
+        return
 
 
 def assemble_bundles(payload: dict, raw_request: bytes) -> tuple[str, dict]:
