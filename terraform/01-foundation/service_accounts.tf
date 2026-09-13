@@ -75,6 +75,14 @@ resource "google_service_account_iam_member" "api_uses_orchestrator" {
 
 # Allows the controlled VM execution identity to obtain an ID token as the
 # portal caller for the initial approved-JSON end-to-end test.
+# Permits the approved workspace administrator to execute the one-time
+# end-to-end request test as the portal caller.
+resource "google_service_account_iam_member" "workspace_admin_impersonates_portal_for_test" {
+  service_account_id = google_service_account.automation["portal"].name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "user:${var.workspace_admin_subject}"
+}
+
 resource "google_service_account_iam_member" "foundation_executor_impersonates_portal" {
   service_account_id = google_service_account.automation["portal"].name
   role               = "roles/iam.serviceAccountTokenCreator"
