@@ -139,6 +139,26 @@ resource "google_service_account_iam_member" "orchestrator_impersonates_runtime_
   member             = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
 }
 
-# Folder, Billing, Shared VPC and target-project roles are deliberately not
-# granted here. Central, network and project IAM administrators grant those
-# roles to the corresponding deployment service accounts before automation.
+# Prepare approved existing projects for the Infrastructure Manager project
+# bootstrap stage. These bindings let the project factory read the project,
+# enable required APIs, and delegate narrowly scoped work to the data and IAM
+# deployment service accounts.
+resource "google_project_iam_member" "project_factory_existing_project_roles" {
+  for_each = {
+    for pair in setproduct(
+      var.existing_sandbox_project_ids,
+      toset([
+        "roles/browser",
+        "roles/resourcemanager.projectIamAdmin",
+        "roles/serviceusage.serviceUsageAdmin",
+      ])
+    ) : "${pair[0]}:${pair[1]}" => { project = pair[0], role = pair[1] }
+  }
+
+  project = each.value.project
+  role    = each.value.role
+  member  = "serviceAccount:${google_service_account.automation["project_factory"].email}"
+}
+
+# Folder, Billing and Shared VPC administrative roles remain outside this
+# foundation module and must be granted by the corresponding central owners.
