@@ -139,26 +139,5 @@ resource "google_service_account_iam_member" "orchestrator_impersonates_runtime_
   member             = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
 }
 
-# Prepare approved existing projects for the Infrastructure Manager project
-# bootstrap stage. These bindings let the project factory read the project,
-# enable required APIs, and delegate narrowly scoped work to the data and IAM
-# deployment service accounts.
-resource "google_project_iam_member" "project_factory_existing_project_roles" {
-  for_each = {
-    for pair in setproduct(
-      var.existing_sandbox_project_ids,
-      toset([
-        "roles/browser",
-        "roles/resourcemanager.projectIamAdmin",
-        "roles/serviceusage.serviceUsageAdmin",
-      ])
-    ) : "${pair[0]}:${pair[1]}" => { project = pair[0], role = pair[1] }
-  }
-
-  project = each.value.project
-  role    = each.value.role
-  member  = "serviceAccount:${google_service_account.automation["project_factory"].email}"
-}
-
-# Folder, Billing and Shared VPC administrative roles remain outside this
-# foundation module and must be granted by the corresponding central owners.
+# Cross-project IAM is managed by terraform/00-admin/iam and is executed
+# with a top-level administrator identity.
