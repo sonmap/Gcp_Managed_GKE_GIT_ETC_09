@@ -107,10 +107,12 @@
     "source": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["repository", "commit_sha"],
+      "required": ["release_id", "archive_uri", "generation", "sha256"],
       "properties": {
-        "repository": { "const": "sonmap/Gcp_Managed_GKE_GIT_ETC_09" },
-        "commit_sha": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+        "release_id": { "type": "string", "pattern": "^[a-z0-9-]{3,64}$" },
+        "archive_uri": { "type": "string", "pattern": "^gs://[a-z0-9._-]+/.+\\.zip$" },
+        "generation": { "type": "integer", "minimum": 1 },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
       }
     }
   }
