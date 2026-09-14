@@ -50,7 +50,49 @@ variable "project_factory_service_account" {
 }
 
 variable "network_admin_service_account" {
-  description = "Infrastructure Manager identity that creates Shared VPC subnets and service-project associations."
+  description = "Infrastructure Manager identity that creates Shared VPC subnets and firewall rules."
   type        = string
   default     = "sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
+variable "manage_cloud_run_shared_vpc_iam" {
+  description = "Manage Cloud Run service-agent network IAM in the Shared VPC host project."
+  type        = bool
+  default     = false
+}
+
+variable "manage_project_factory_existing_project_iam" {
+  description = "Manage Project Factory bootstrap IAM on the existing sandbox project."
+  type        = bool
+  default     = false
+}
+
+variable "manage_network_admin_host_iam" {
+  description = "Manage Network Admin and Security Admin roles for sa-im-network-admin in the Shared VPC host project."
+  type        = bool
+  default     = true
+}
+
+variable "manage_network_admin_xpn_iam" {
+  description = "Manage folder-level XPN Admin for sa-im-network-admin. Requires folder IAM permissions."
+  type        = bool
+  default     = false
+}
+
+variable "manage_workflow_gke_iam" {
+  description = "Manage Workflow IAM on the GKE project."
+  type        = bool
+  default     = false
+}
+
+variable "manage_workflow_existing_project_iam" {
+  description = "Manage Workflow IAM on the existing sandbox project."
+  type        = bool
+  default     = false
+}
+
+variable "manage_workflow_shared_vpc_iam" {
+  description = "Manage Workflow read-only IAM on the Shared VPC host project."
+  type        = bool
+  default     = false
 }
