@@ -250,6 +250,11 @@
         "gcs_bucket": {
           "type": "string",
           "pattern": "^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$"
+        },
+        "adopt_existing_resources": {
+          "type": "boolean",
+          "default": false,
+          "description": "Adopt the approved pre-existing Jupyter service account and BigQuery dataset into Infrastructure Manager state."
         }
       }
     },
