@@ -1,19 +1,36 @@
 variable "cicd_project_id" { type = string }
 variable "shared_vpc_host_project_id" { type = string }
 variable "gke_project_id" { type = string }
+
 variable "region" {
   type    = string
   default = "asia-northeast3"
 }
+
 variable "shared_vpc_network_self_link" { type = string }
-variable "gke_subnet_self_link" { type = string }
+
+variable "gke_main_subnet_self_link" { type = string }
+variable "gke_main_pod_range_name" { type = string }
+variable "gke_main_pod_cidr" { type = string }
+variable "gke_main_control_plane_cidr" { type = string }
+
+variable "gke_test_subnet_self_link" { type = string }
+variable "gke_test_pod_range_name" { type = string }
+variable "gke_test_pod_cidr" { type = string }
+variable "gke_test_control_plane_cidr" { type = string }
+variable "cicd_test_gke_cluster_name" {
+  type    = string
+  default = "gke-dev-cicd-01-an3"
+}
+
 variable "cloudrun_subnet_self_link" { type = string }
-variable "gke_pod_range_name" { type = string }
-variable "gke_pod_cidr" { type = string }
+variable "cloudbuild_private_pool_ip_range" { type = string }
+
 variable "gke_cluster_name" {
   type    = string
   default = "gke-sbx-main-an3"
 }
+
 variable "state_bucket_name" { type = string }
 variable "request_bucket_name" {
   type    = string
@@ -23,6 +40,7 @@ variable "bundle_bucket_name" {
   type    = string
   default = ""
 }
+
 variable "github_owner" {
   type    = string
   default = "sonmap"
@@ -39,6 +57,7 @@ variable "foundation_executor_service_account" {
   type    = string
   default = "40744085720-compute@developer.gserviceaccount.com"
 }
+
 variable "provisioner_ingress" {
   type    = string
   default = "INGRESS_TRAFFIC_ALL"
@@ -52,6 +71,7 @@ variable "provisioner_ingress" {
     error_message = "provisioner_ingress must use a Cloud Run v2 ingress enum value."
   }
 }
+
 variable "workspace_admin_subject" {
   type    = string
   default = "admin@sonmap.net"
