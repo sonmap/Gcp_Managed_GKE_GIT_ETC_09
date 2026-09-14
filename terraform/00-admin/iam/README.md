@@ -141,3 +141,16 @@ terraform apply foundation-bootstrap.tfplan
 | Shared VPC | `foundation-shared-vpc.admin.tfvars` | `admin/foundation-shared-vpc-iam` |
 
 각 영역은 해당 프로젝트 IAM 관리자가 별도로 실행합니다. 서로 다른 관리영역을 하나의 State에 다시 합치지 않습니다.
+
+
+## 관리자 프로필 사전검사
+
+Terraform Plan/Apply 전에 대상 프로젝트 IAM Policy 조회 가능 여부를 검사합니다.
+
+```bash
+bash preflight-admin-profile.sh cicd
+bash preflight-admin-profile.sh gke
+bash preflight-admin-profile.sh shared-vpc
+```
+
+`BLOCKED`가 표시되면 해당 로그인 계정으로 Terraform을 실행하지 않습니다. 조회 검사가 성공하더라도 실제 적용 전 `resourcemanager.projects.setIamPolicy` 보유 여부를 관리자에게 확인해야 합니다.
