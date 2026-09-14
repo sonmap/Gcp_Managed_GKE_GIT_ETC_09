@@ -1,3 +1,11 @@
+output "iam_changes_enabled" {
+  value = local.iam_changes_enabled
+}
+
+output "full_scope_enabled" {
+  value = local.full_scope
+}
+
 output "existing_sandbox_project_id" {
   value = var.existing_sandbox_project_id
 }
@@ -11,10 +19,7 @@ output "shared_vpc_admin_folder_id" {
 }
 
 output "network_admin_roles" {
-  value = concat(
-    sort(tolist(local.network_admin_host_roles)),
-    ["roles/compute.xpnAdmin"],
-  )
+  value = sort(tolist(local.network_admin_host_roles))
 }
 
 output "workflow_service_account" {
