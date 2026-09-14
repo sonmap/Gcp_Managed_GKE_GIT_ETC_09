@@ -1,9 +1,9 @@
 output "gke_cluster_name" {
-  value = google_container_cluster.sandbox.name
+  value = try(google_container_cluster.sandbox[0].name, null)
 }
 
 output "cicd_test_gke_cluster_name" {
-  value = google_container_cluster.cicd_test.name
+  value = try(google_container_cluster.cicd_test[0].name, null)
 }
 
 output "workflow_name" {
