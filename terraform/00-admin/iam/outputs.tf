@@ -33,3 +33,16 @@ output "workflow_cross_project_roles" {
     shared_vpc_host  = sort(tolist(local.workflow_shared_vpc_roles))
   }
 }
+
+output "foundation_executor_bootstrap" {
+  value = {
+    service_account = var.foundation_executor_service_account
+    shared_vpc_host = [
+      "roles/compute.networkViewer",
+      "roles/compute.networkUser on ${var.gke_main_subnet_name}",
+      "roles/compute.networkUser on ${var.gke_test_subnet_name}",
+    ]
+    gke_project  = "roles/container.admin"
+    cicd_project = "roles/container.admin"
+  }
+}
