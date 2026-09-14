@@ -2,9 +2,13 @@ shared_vpc_host_project_id     = "pjt-d-shared-base"
 shared_vpc_admin_folder_id      = "154455658682"
 region                          = "asia-northeast3"
 cloudrun_subnet_name            = "subnet-dev-cicd-run-01-an3-egress"
+cicd_project_id                 = "prj-b-cicd-local-236d"
 cicd_project_number             = "587273205772"
 gke_project_id                  = "pjt-d-host01"
 existing_sandbox_project_id     = "pjt-net-hub-base"
+foundation_executor_service_account = "40744085720-compute@developer.gserviceaccount.com"
+gke_main_subnet_name            = "subnet-dev-sbx-gke-01-an3-main"
+gke_test_subnet_name            = "subnet-dev-cicd-gke-01-an3-test"
 workflow_service_account        = "sa-sandbox-workflow@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 project_factory_service_account = "sa-im-project-factory@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 network_admin_service_account   = "sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
@@ -16,6 +20,7 @@ allow_full_scope   = false
 
 # All IAM domains are disabled by default. An IAM administrator must explicitly
 # enable the global gate and only the approved manage_* switches.
+manage_foundation_executor_iam               = false
 manage_cloud_run_shared_vpc_iam             = false
 manage_project_factory_existing_project_iam = false
 manage_network_admin_host_iam                = false
