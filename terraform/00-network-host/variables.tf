@@ -27,8 +27,14 @@ variable "task_name" { type = string }
 variable "task_subnet_cidr" { type = string }
 variable "task_vm_service_account_email" { type = string }
 
+variable "enable_firewall_changes" {
+  type        = bool
+  description = "Global approval gate for firewall mutations. Keep false unless the caller already has compute.firewalls.create in the Shared VPC host project."
+  default     = false
+}
+
 variable "create_health_check_firewall" {
   type        = bool
-  description = "Create the GKE L7 health-check firewall in the Shared VPC host project. The execution identity must have compute.firewalls.create."
-  default     = true
+  description = "Create the GKE L7 health-check firewall only when enable_firewall_changes is also true."
+  default     = false
 }
