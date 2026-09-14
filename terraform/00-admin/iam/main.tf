@@ -36,7 +36,7 @@ locals {
 # Foundation executor bootstrap. The caller applying this root must already be
 # IAM administrator on every selected project and Shared VPC subnet.
 resource "google_project_iam_member" "foundation_executor_host_viewer" {
-  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+  count = local.full_scope && var.manage_foundation_executor_shared_vpc_iam ? 1 : 0
 
   project = var.shared_vpc_host_project_id
   role    = "roles/compute.networkViewer"
@@ -44,7 +44,7 @@ resource "google_project_iam_member" "foundation_executor_host_viewer" {
 }
 
 resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_main_network_user" {
-  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+  count = local.full_scope && var.manage_foundation_executor_shared_vpc_iam ? 1 : 0
 
   project    = var.shared_vpc_host_project_id
   region     = var.region
@@ -54,7 +54,7 @@ resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_main_ne
 }
 
 resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_test_network_user" {
-  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+  count = local.full_scope && var.manage_foundation_executor_shared_vpc_iam ? 1 : 0
 
   project    = var.shared_vpc_host_project_id
   region     = var.region
@@ -64,7 +64,7 @@ resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_test_ne
 }
 
 resource "google_project_iam_member" "foundation_executor_gke_admin" {
-  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+  count = local.full_scope && var.manage_foundation_executor_gke_project_iam ? 1 : 0
 
   project = var.gke_project_id
   role    = "roles/container.admin"
@@ -72,7 +72,7 @@ resource "google_project_iam_member" "foundation_executor_gke_admin" {
 }
 
 resource "google_project_iam_member" "foundation_executor_cicd_gke_admin" {
-  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+  count = local.full_scope && var.manage_foundation_executor_cicd_iam ? 1 : 0
 
   project = var.cicd_project_id
   role    = "roles/container.admin"
