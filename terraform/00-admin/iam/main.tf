@@ -1,7 +1,10 @@
 locals {
   cloud_run_service_agent = "service-${var.cicd_project_number}@serverless-robot-prod.iam.gserviceaccount.com"
 
-  full_scope = var.iam_scope == "full"
+  # Full cross-project/folder IAM requires two explicit gates. This prevents
+  # stale local tfvars that still contain iam_scope="full" from expanding the
+  # plan unless allow_full_scope is also intentionally enabled.
+  full_scope = var.iam_scope == "full" && var.allow_full_scope
 
   project_factory_roles = toset([
     "roles/browser",
@@ -27,8 +30,8 @@ locals {
   ])
 }
 
-# Cloud Run Direct VPC egress IAM. Disabled in network-host-only mode even if
-# a stale local tfvars file still sets manage_cloud_run_shared_vpc_iam=true.
+# Cloud Run Direct VPC egress IAM. Disabled unless full scope is explicitly
+# unlocked, even if stale local tfvars set manage_cloud_run_shared_vpc_iam=true.
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
   count = local.full_scope && var.manage_cloud_run_shared_vpc_iam ? 1 : 0
 
@@ -47,7 +50,7 @@ resource "google_project_iam_member" "cloud_run_network_viewer" {
   member  = "serviceAccount:${local.cloud_run_service_agent}"
 }
 
-# Existing sandbox project bootstrap IAM. Disabled in network-host-only mode.
+# Existing sandbox project bootstrap IAM. Disabled unless full scope is unlocked.
 resource "google_project_iam_member" "project_factory_existing_project_roles" {
   for_each = local.full_scope && var.manage_project_factory_existing_project_iam ? local.project_factory_roles : toset([])
 
@@ -66,7 +69,7 @@ resource "google_project_iam_member" "network_admin_host_roles" {
   member  = "serviceAccount:${var.network_admin_service_account}"
 }
 
-# XPN Admin is folder-level and is disabled in network-host-only mode.
+# XPN Admin is folder-level and is disabled unless full scope is unlocked.
 resource "google_folder_iam_member" "network_admin_shared_vpc_admin" {
   count = local.full_scope && var.manage_network_admin_xpn_iam ? 1 : 0
 
