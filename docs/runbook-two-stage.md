@@ -28,12 +28,7 @@ terraform show -no-color foundation.tfplan
 
 Foundation의 확정 네트워크 값은 `variables.tf`에도 안전한 기본값으로 선언되어 있으므로 Plan이 대화형 변수 입력을 요구하지 않아야 합니다. 입력 프롬프트가 나오면 값을 임의로 입력하지 말고 중단합니다.
 
-기본 실행 계정에서는 다음 안전 게이트를 false로 유지합니다.
-
-```hcl
-enable_cloud_run_shared_vpc_iam = false
-enable_gke_cluster_changes      = false
-```
+기본 실행 계정의 확정 네트워크 값과 안전 게이트는 Git에서 관리하는 `zz-foundation-safe.auto.tfvars`가 자동 적용합니다. 사용자가 로컬 `terraform.tfvars`를 수정할 필요가 없습니다. 이 파일은 기존 로컬 변수 파일보다 나중에 로드되어 오래된 서브넷명이나 권한 스위치가 다시 적용되는 것을 막습니다.
 
 기존 서비스 계정 때문에 409가 발생했거나 부분 Apply 후 재실행하는 경우 먼저 저장소의 Import 도우미를 실행합니다.
 
