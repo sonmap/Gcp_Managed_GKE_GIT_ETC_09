@@ -62,6 +62,8 @@ resource "google_project_iam_member" "deployment_account_cicd_roles" {
   member  = "serviceAccount:${google_service_account.automation[each.value.account].email}"
 }
 
+# Existing project_factory, network_admin, project_iam, and data_admin accounts
+# are adopted declaratively by the import blocks in migrations.tf.
 resource "google_service_account" "automation" {
   for_each     = local.automation_service_accounts
   project      = var.cicd_project_id
