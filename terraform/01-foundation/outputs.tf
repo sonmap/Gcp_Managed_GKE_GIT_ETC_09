@@ -7,7 +7,7 @@ output "cicd_test_gke_cluster_name" {
 }
 
 output "workflow_name" {
-  value = google_workflows_workflow.sandbox_provision.name
+  value = try(google_workflows_workflow.sandbox_provision[0].name, null)
 }
 
 output "workflow_service_account" {
@@ -23,7 +23,7 @@ output "sandbox_build_trigger_id" {
 }
 
 output "provisioner_uri" {
-  value = google_cloud_run_v2_service.provisioner.uri
+  value = try(google_cloud_run_v2_service.provisioner[0].uri, null)
 }
 
 output "request_bucket" {
