@@ -23,8 +23,9 @@ cloudrun_subnet_name              = "subnet-dev-cicd-run-01-an3-egress"
 cloudbuild_private_pool_ip_range = "10.250.0.0/24"
 
 # Privileged cross-project/GKE operations are disabled for the normal executor.
-enable_cloud_run_shared_vpc_iam = false
-enable_gke_cluster_changes      = false
+enable_cloud_run_service_changes  = false
+enable_cloud_run_shared_vpc_iam   = false
+enable_gke_cluster_changes        = false
 
 state_bucket_name = "tfstate-sbx-cicd-236d-40744085720"
 github_owner      = "sonmap"
