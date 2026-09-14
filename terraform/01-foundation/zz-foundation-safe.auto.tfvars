@@ -24,6 +24,7 @@ cloudbuild_private_pool_ip_range  = "10.250.0.0/24"
 
 enable_cloud_run_service_changes = true
 enable_cloud_run_shared_vpc_iam  = false
+gke_deletion_protection          = false
 enable_gke_cluster_changes       = false
 enable_gke_main_cluster_changes  = false
 enable_gke_test_cluster_changes  = true
