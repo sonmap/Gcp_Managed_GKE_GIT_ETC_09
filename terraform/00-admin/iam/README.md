@@ -110,3 +110,21 @@ terraform show -no-color admin-iam.tfplan
 ```
 
 스크립트는 실제 GCP IAM Binding을 삭제하지 않고 해당 주소를 Terraform State에서만 제거합니다. 실행 전에 현재 State를 `admin-iam-state-backup-<UTC시각>.json`으로 저장합니다.
+
+
+## Foundation 완료를 위한 관리자 Bootstrap
+
+Foundation 실행 계정의 GKE 및 Shared VPC 권한은 Git에서 관리하는 `foundation-bootstrap.admin.tfvars`로 적용합니다. 로컬 변수 파일을 수정하지 않습니다.
+
+이 단계는 `pjt-d-shared-base`, `pjt-d-host01`, `prj-b-cicd-local-236d`의 IAM 및 대상 Subnet IAM을 변경할 수 있는 관리자 계정으로만 수행합니다.
+
+```bash
+terraform plan -input=false \
+  -var-file=foundation-bootstrap.admin.tfvars \
+  -out=foundation-bootstrap.tfplan
+
+terraform show -no-color foundation-bootstrap.tfplan
+terraform apply foundation-bootstrap.tfplan
+```
+
+적용 범위는 Foundation 실행 계정의 GKE 관리 권한, 두 GKE Subnet의 Network User, Shared VPC 조회 권한, Cloud Run 서비스 에이전트의 Cloud Run Subnet Network User/Network Viewer입니다. Folder XPN, Project Factory, Workflow 교차 프로젝트 권한은 이 프로필에서 비활성화됩니다.
