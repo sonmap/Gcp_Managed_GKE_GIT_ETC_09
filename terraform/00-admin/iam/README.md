@@ -128,3 +128,16 @@ terraform apply foundation-bootstrap.tfplan
 ```
 
 적용 범위는 Foundation 실행 계정의 GKE 관리 권한, 두 GKE Subnet의 Network User, Shared VPC 조회 권한, Cloud Run 서비스 에이전트의 Cloud Run Subnet Network User/Network Viewer입니다. Folder XPN, Project Factory, Workflow 교차 프로젝트 권한은 이 프로필에서 비활성화됩니다.
+
+
+## 관리영역별 독립 State
+
+한 실행 계정이 세 프로젝트의 IAM을 모두 관리하지 못하므로 Bootstrap을 다음처럼 분리합니다.
+
+| 관리영역 | Git 변수 파일 | Backend Prefix |
+|---|---|---|
+| CI/CD 프로젝트 | `foundation-bootstrap.admin.tfvars` | `admin/shared-vpc-iam` (기존 성공 State 유지) |
+| GKE 프로젝트 | `foundation-gke-project.admin.tfvars` | `admin/foundation-gke-project-iam` |
+| Shared VPC | `foundation-shared-vpc.admin.tfvars` | `admin/foundation-shared-vpc-iam` |
+
+각 영역은 해당 프로젝트 IAM 관리자가 별도로 실행합니다. 서로 다른 관리영역을 하나의 State에 다시 합치지 않습니다.
