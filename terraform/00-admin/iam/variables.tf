@@ -56,7 +56,7 @@ variable "network_admin_service_account" {
 }
 
 variable "iam_scope" {
-  description = "Safety gate for this IAM root. network-host-only manages only sa-im-network-admin project roles. full allows individually enabled cross-project/folder IAM domains."
+  description = "Safety gate for this IAM root. network-host-only manages only sa-im-network-admin project roles. full is eligible for cross-project/folder IAM only when allow_full_scope=true."
   type        = string
   default     = "network-host-only"
 
@@ -66,14 +66,20 @@ variable "iam_scope" {
   }
 }
 
+variable "allow_full_scope" {
+  description = "Second safety gate. Cross-project/folder IAM is disabled unless this is explicitly true together with iam_scope=full."
+  type        = bool
+  default     = false
+}
+
 variable "manage_cloud_run_shared_vpc_iam" {
-  description = "Manage Cloud Run service-agent network IAM in the Shared VPC host project. Effective only when iam_scope=full."
+  description = "Manage Cloud Run service-agent network IAM in the Shared VPC host project. Effective only when iam_scope=full and allow_full_scope=true."
   type        = bool
   default     = false
 }
 
 variable "manage_project_factory_existing_project_iam" {
-  description = "Manage Project Factory bootstrap IAM on the existing sandbox project. Effective only when iam_scope=full."
+  description = "Manage Project Factory bootstrap IAM on the existing sandbox project. Effective only when iam_scope=full and allow_full_scope=true."
   type        = bool
   default     = false
 }
@@ -85,25 +91,25 @@ variable "manage_network_admin_host_iam" {
 }
 
 variable "manage_network_admin_xpn_iam" {
-  description = "Manage folder-level XPN Admin for sa-im-network-admin. Requires iam_scope=full and folder IAM permissions."
+  description = "Manage folder-level XPN Admin for sa-im-network-admin. Effective only when iam_scope=full and allow_full_scope=true."
   type        = bool
   default     = false
 }
 
 variable "manage_workflow_gke_iam" {
-  description = "Manage Workflow IAM on the GKE project. Effective only when iam_scope=full."
+  description = "Manage Workflow IAM on the GKE project. Effective only when iam_scope=full and allow_full_scope=true."
   type        = bool
   default     = false
 }
 
 variable "manage_workflow_existing_project_iam" {
-  description = "Manage Workflow IAM on the existing sandbox project. Effective only when iam_scope=full."
+  description = "Manage Workflow IAM on the existing sandbox project. Effective only when iam_scope=full and allow_full_scope=true."
   type        = bool
   default     = false
 }
 
 variable "manage_workflow_shared_vpc_iam" {
-  description = "Manage Workflow read-only IAM on the Shared VPC host project. Effective only when iam_scope=full."
+  description = "Manage Workflow read-only IAM on the Shared VPC host project. Effective only when iam_scope=full and allow_full_scope=true."
   type        = bool
   default     = false
 }
