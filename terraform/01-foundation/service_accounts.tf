@@ -2,6 +2,7 @@ locals {
   automation_service_accounts = {
     portal          = { account_id = "sa-sandbox-portal", display_name = "Approved sandbox portal caller" }
     api             = { account_id = "sa-sandbox-api", display_name = "Approved sandbox request API" }
+    workflow        = { account_id = "sa-sandbox-workflow", display_name = "Sandbox provisioning workflow runtime" }
     # Preserve the existing account_id so the foundation state migration does
     # not replace the already-created execution identity.
     orchestrator    = { account_id = "sa-sandbox-terraform", display_name = "Sandbox Cloud Build orchestrator" }
@@ -86,10 +87,8 @@ resource "google_service_account_iam_member" "api_uses_orchestrator" {
   member             = "serviceAccount:${google_service_account.automation["api"].email}"
 }
 
-# Allows the controlled VM execution identity to obtain an ID token as the
-# portal caller for the initial approved-JSON end-to-end test.
-# Permits the approved workspace administrator to execute the one-time
-# end-to-end request test as the portal caller.
+# Allows the controlled VM execution identity and workspace administrator to
+# obtain an ID token as the portal caller for end-to-end tests.
 resource "google_service_account_iam_member" "workspace_admin_impersonates_portal_for_test" {
   service_account_id = google_service_account.automation["portal"].name
   role               = "roles/iam.serviceAccountTokenCreator"
@@ -103,11 +102,32 @@ resource "google_service_account_iam_member" "foundation_executor_impersonates_p
 }
 
 resource "google_service_account_iam_member" "foundation_executor_uses_runtime_accounts" {
-  for_each = toset(["api", "orchestrator"])
+  for_each = toset(["api", "orchestrator", "workflow"])
 
   service_account_id = google_service_account.automation[each.value].name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+# Workflow can invoke Cloud Run, submit Cloud Builds to the private pool, and
+# access workloads in the CI/CD project's Python test GKE cluster.
+resource "google_project_iam_member" "workflow_cicd_roles" {
+  for_each = toset([
+    "roles/cloudbuild.builds.editor",
+    "roles/cloudbuild.workerPoolUser",
+    "roles/container.developer",
+    "roles/logging.logWriter",
+  ])
+
+  project = var.cicd_project_id
+  role    = each.value
+  member  = "serviceAccount:${google_service_account.automation["workflow"].email}"
+}
+
+resource "google_project_iam_member" "portal_invokes_workflow" {
+  project = var.cicd_project_id
+  role    = "roles/workflows.invoker"
+  member  = "serviceAccount:${google_service_account.automation["portal"].email}"
 }
 
 resource "google_project_iam_member" "orchestrator_roles" {
