@@ -34,3 +34,8 @@ cloudbuild_psa_cidr = "10.250.0.0/24"
 task_name                     = "sbx01"
 task_subnet_cidr              = "172.31.110.0/24"
 task_vm_service_account_email = "40744085720-compute@developer.gserviceaccount.com"
+
+# Current Foundation executor does not have compute.firewalls.create in pjt-d-shared-base.
+# Leave false and have the network/security team create the rule separately, or set true
+# after roles/compute.securityAdmin (or equivalent custom permissions) is granted.
+create_health_check_firewall = false
