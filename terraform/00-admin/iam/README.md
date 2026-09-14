@@ -127,7 +127,7 @@ terraform show -no-color foundation-bootstrap.tfplan
 terraform apply foundation-bootstrap.tfplan
 ```
 
-적용 범위는 Foundation 실행 계정의 GKE 관리 권한, 두 GKE Subnet의 Network User, Shared VPC 조회 권한, Cloud Run 서비스 에이전트의 Cloud Run Subnet Network User/Network Viewer입니다. Folder XPN, Project Factory, Workflow 교차 프로젝트 권한은 이 프로필에서 비활성화됩니다.
+적용 범위는 Foundation 실행 계정의 GKE 관리 권한, 두 GKE Subnet의 Network User, Cloud Run 서비스 에이전트의 Cloud Run Subnet Network User입니다. Host Project 단위 Network Viewer는 사용하지 않습니다. Folder XPN, Project Factory, Workflow 교차 프로젝트 권한은 이 프로필에서 비활성화됩니다.
 
 
 ## 관리영역별 독립 State
@@ -154,3 +154,13 @@ bash preflight-admin-profile.sh shared-vpc
 ```
 
 `BLOCKED`가 표시되면 해당 로그인 계정으로 Terraform을 실행하지 않습니다. 조회 검사가 성공하더라도 실제 적용 전 `resourcemanager.projects.setIamPolicy` 보유 여부를 관리자에게 확인해야 합니다.
+
+
+## Subnet 최소 권한 원칙
+
+Shared VPC Host Project의 프로젝트 IAM 변경 권한이 없는 운영 경계를 반영하여 다음 두 프로젝트 단위 Binding은 생성하지 않습니다.
+
+- Foundation 실행 계정의 `roles/compute.networkViewer`
+- Cloud Run 서비스 에이전트의 `roles/compute.networkViewer`
+
+대신 각 대상 Subnet의 `roles/compute.networkUser`만 관리합니다. 이 역할은 Cloud Run Direct VPC와 GKE Shared VPC의 Subnet 사용에 필요한 조회·사용 권한을 제공합니다.
