@@ -6,6 +6,14 @@ output "cicd_test_gke_cluster_name" {
   value = google_container_cluster.cicd_test.name
 }
 
+output "workflow_name" {
+  value = google_workflows_workflow.sandbox_provision.name
+}
+
+output "workflow_service_account" {
+  value = google_service_account.automation["workflow"].email
+}
+
 output "worker_pool_id" {
   value = google_cloudbuild_worker_pool.terraform.id
 }
