@@ -14,10 +14,17 @@
 `sa-im-network-admin`에 다음 권한을 부여합니다.
 
 - `pjt-d-shared-base`: `roles/compute.networkAdmin`
+- `pjt-d-shared-base`: `roles/compute.securityAdmin`
 - 공통 폴더 `154455658682`: `roles/compute.xpnAdmin`
 
+`roles/compute.networkAdmin`은 Subnet, Route 등 네트워크 자원 관리에 사용하고,
+`roles/compute.securityAdmin`은 GKE/ALB Health Check용 Firewall 규칙 생성·수정에 사용합니다.
 `roles/compute.xpnAdmin`은 Shared VPC 서비스 프로젝트 연결에 사용하며
 프로젝트가 아니라 공통 상위 폴더에서 부여합니다.
+
+> 주의: 이 IAM Root가 권한을 부여하는 대상은 `sa-im-network-admin`입니다.
+> `00-network-host`를 `admin@sonmap.net` 같은 사용자 자격증명으로 직접 실행하면
+> 그 사용자에게도 별도로 `compute.firewalls.create` 권한이 있어야 합니다.
 
 ## 실행
 
