@@ -167,6 +167,36 @@ def zip_directory(source: Path) -> bytes:
     return output.getvalue()
 
 
+def write_static_data_imports(work: Path, payload: dict) -> None:
+    """Write literal import IDs for data resources that were approved for adoption.
+
+    Infrastructure Manager uses Terraform 1.5.7, where import block IDs cannot
+    reference input variables. This generated file is included only in the
+    request-specific bundle, so its values are already approved and immutable.
+    """
+    if not payload["data"].get("adopt_existing_resources", False):
+        return
+
+    project_id = payload["project"]["project_id"]
+    task_name = payload["task"]["name"]
+    dataset_id = payload["data"]["bigquery_dataset"]
+    service_account = (
+        f"projects/{project_id}/serviceAccounts/"
+        f"gsa-jupyter-{task_name}@{project_id}.iam.gserviceaccount.com"
+    )
+    imports = (
+        "import {\n"
+        "  to = google_service_account.jupyter\n"
+        f"  id = {json.dumps(service_account)}\n"
+        "}\n\n"
+        "import {\n"
+        "  to = google_bigquery_dataset.sandbox\n"
+        f"  id = {json.dumps(f'{project_id}:{dataset_id}')}\n"
+        "}\n"
+    )
+    (work / "imports.tf").write_text(imports, encoding="utf-8")
+
+
 def upload_immutable(blob, content: bytes, content_type: str) -> None:
     try:
         blob.upload_from_string(content, content_type=content_type, if_generation_match=0)
@@ -194,6 +224,8 @@ def assemble_bundles(payload: dict, raw_request: bytes) -> tuple[str, dict]:
                 raise ValueError(f"missing Terraform root module: {stage}")
             work = temp / "work" / stage
             shutil.copytree(source, work)
+            if stage == "40-data":
+                write_static_data_imports(work, payload)
             (work / "terraform.auto.tfvars.json").write_text(
                 json.dumps(variables[stage], indent=2, sort_keys=True), encoding="utf-8"
             )
