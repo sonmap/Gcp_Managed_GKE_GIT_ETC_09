@@ -6,7 +6,7 @@ locals {
     "config.googleapis.com", "cloudresourcemanager.googleapis.com",
     "cloudbilling.googleapis.com", "iamcredentials.googleapis.com",
     "admin.googleapis.com", "compute.googleapis.com",
-    "container.googleapis.com"
+    "container.googleapis.com", "workflows.googleapis.com"
   ])
   gke_apis = toset(["container.googleapis.com", "compute.googleapis.com"])
 }
