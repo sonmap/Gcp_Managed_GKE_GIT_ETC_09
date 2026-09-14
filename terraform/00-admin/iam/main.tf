@@ -33,6 +33,52 @@ locals {
   ])
 }
 
+# Foundation executor bootstrap. The caller applying this root must already be
+# IAM administrator on every selected project and Shared VPC subnet.
+resource "google_project_iam_member" "foundation_executor_host_viewer" {
+  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+
+  project = var.shared_vpc_host_project_id
+  role    = "roles/compute.networkViewer"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_main_network_user" {
+  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+
+  project    = var.shared_vpc_host_project_id
+  region     = var.region
+  subnetwork = var.gke_main_subnet_name
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_test_network_user" {
+  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+
+  project    = var.shared_vpc_host_project_id
+  region     = var.region
+  subnetwork = var.gke_test_subnet_name
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+resource "google_project_iam_member" "foundation_executor_gke_admin" {
+  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+
+  project = var.gke_project_id
+  role    = "roles/container.admin"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+resource "google_project_iam_member" "foundation_executor_cicd_gke_admin" {
+  count = local.full_scope && var.manage_foundation_executor_iam ? 1 : 0
+
+  project = var.cicd_project_id
+  role    = "roles/container.admin"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
 # Cloud Run Direct VPC egress IAM. Disabled unless full scope is explicitly
 # unlocked by an IAM administrator.
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
