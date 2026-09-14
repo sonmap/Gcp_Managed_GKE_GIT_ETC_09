@@ -101,7 +101,25 @@ variable "allow_full_scope" {
 }
 
 variable "manage_foundation_executor_iam" {
-  description = "Grant the Foundation executor GKE administration and Shared VPC read/use permissions. Effective only in fully unlocked scope."
+  description = "Deprecated aggregate switch retained for old tfvars compatibility. Use the three domain switches."
+  type        = bool
+  default     = false
+}
+
+variable "manage_foundation_executor_cicd_iam" {
+  description = "Grant container.admin to the Foundation executor in the CI/CD project."
+  type        = bool
+  default     = false
+}
+
+variable "manage_foundation_executor_gke_project_iam" {
+  description = "Grant container.admin to the Foundation executor in pjt-d-host01."
+  type        = bool
+  default     = false
+}
+
+variable "manage_foundation_executor_shared_vpc_iam" {
+  description = "Grant Shared VPC viewer and GKE subnet Network User roles to the Foundation executor."
   type        = bool
   default     = false
 }
