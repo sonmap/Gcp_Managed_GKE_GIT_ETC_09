@@ -1,3 +1,4 @@
+# Main JupyterHub cluster in the GKE service project.
 resource "google_container_cluster" "sandbox" {
   provider = google-beta
   project  = var.gke_project_id
@@ -6,17 +7,18 @@ resource "google_container_cluster" "sandbox" {
 
   enable_autopilot    = true
   network             = var.shared_vpc_network_self_link
-  subnetwork          = var.gke_subnet_self_link
+  subnetwork          = var.gke_main_subnet_self_link
   networking_mode     = "VPC_NATIVE"
   deletion_protection = true
 
   ip_allocation_policy {
-    cluster_secondary_range_name = var.gke_pod_range_name
+    cluster_secondary_range_name = var.gke_main_pod_range_name
   }
 
   private_cluster_config {
-    enable_private_nodes    = true
-    enable_private_endpoint = false
+    enable_private_nodes      = true
+    enable_private_endpoint   = false
+    master_ipv4_cidr_block    = var.gke_main_control_plane_cidr
   }
 
   workload_identity_config {
@@ -24,4 +26,34 @@ resource "google_container_cluster" "sandbox" {
   }
 
   depends_on = [google_project_service.gke]
+}
+
+# Small Autopilot cluster in the CI/CD project for Python program tests.
+resource "google_container_cluster" "cicd_test" {
+  provider = google-beta
+  project  = var.cicd_project_id
+  name     = var.cicd_test_gke_cluster_name
+  location = var.region
+
+  enable_autopilot    = true
+  network             = var.shared_vpc_network_self_link
+  subnetwork          = var.gke_test_subnet_self_link
+  networking_mode     = "VPC_NATIVE"
+  deletion_protection = false
+
+  ip_allocation_policy {
+    cluster_secondary_range_name = var.gke_test_pod_range_name
+  }
+
+  private_cluster_config {
+    enable_private_nodes    = true
+    enable_private_endpoint = false
+    master_ipv4_cidr_block  = var.gke_test_control_plane_cidr
+  }
+
+  workload_identity_config {
+    workload_pool = "${var.cicd_project_id}.svc.id.goog"
+  }
+
+  depends_on = [google_project_service.cicd["container.googleapis.com"]]
 }
