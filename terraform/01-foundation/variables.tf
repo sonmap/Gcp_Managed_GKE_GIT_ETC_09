@@ -69,8 +69,27 @@ variable "cicd_test_gke_cluster_name" {
 }
 
 variable "cloudrun_subnet_self_link" {
+  type        = string
+  default     = null
+  nullable    = true
+  description = "Deprecated compatibility input. The canonical Foundation subnet name is used unless network design is changed in source."
+}
+
+variable "cloudrun_subnet_name" {
   type    = string
-  default = "projects/pjt-d-shared-base/regions/asia-northeast3/subnetworks/subnet-dev-cicd-run-01-an3-egress"
+  default = "subnet-dev-cicd-run-01-an3-egress"
+}
+
+variable "enable_cloud_run_shared_vpc_iam" {
+  type        = bool
+  default     = false
+  description = "Manage Cloud Run service-agent Network User on the host subnet. Enable only for a caller with Shared VPC subnet IAM permission."
+}
+
+variable "enable_gke_cluster_changes" {
+  type        = bool
+  default     = false
+  description = "Create Foundation GKE clusters. Enable only after Shared VPC Network User and container.clusters.create permissions are confirmed."
 }
 
 variable "cloudbuild_private_pool_ip_range" {
