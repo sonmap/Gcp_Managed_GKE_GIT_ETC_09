@@ -27,6 +27,10 @@ resource "google_container_cluster" "sandbox" {
     workload_pool = "${var.gke_project_id}.svc.id.goog"
   }
 
+  lifecycle {
+    prevent_destroy = true
+  }
+
   depends_on = [google_project_service.gke]
 }
 
@@ -43,7 +47,7 @@ resource "google_container_cluster" "cicd_test" {
   network             = var.shared_vpc_network_self_link
   subnetwork          = var.gke_test_subnet_self_link
   networking_mode     = "VPC_NATIVE"
-  deletion_protection = false
+  deletion_protection = true
 
   ip_allocation_policy {
     cluster_secondary_range_name = var.gke_test_pod_range_name
@@ -57,6 +61,10 @@ resource "google_container_cluster" "cicd_test" {
 
   workload_identity_config {
     workload_pool = "${var.cicd_project_id}.svc.id.goog"
+  }
+
+  lifecycle {
+    prevent_destroy = true
   }
 
   depends_on = [google_project_service.cicd["container.googleapis.com"]]
