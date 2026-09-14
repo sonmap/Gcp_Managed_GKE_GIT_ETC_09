@@ -1,0 +1,31 @@
+# Git-managed execution profile.
+# Terraform loads this after terraform.tfvars, so stale ETC_08 local values do
+# not re-enable privileged resources or select retired subnet names.
+
+cicd_project_id            = "prj-b-cicd-local-236d"
+shared_vpc_host_project_id = "pjt-d-shared-base"
+gke_project_id             = "pjt-d-host01"
+region                     = "asia-northeast3"
+
+shared_vpc_network_self_link = "projects/pjt-d-shared-base/global/networks/vpc-d-shared-base"
+
+gke_main_subnet_self_link   = "projects/pjt-d-shared-base/regions/asia-northeast3/subnetworks/subnet-dev-sbx-gke-01-an3-main"
+gke_main_pod_range_name     = "pods-dev-sbx-gke-01-an3-main"
+gke_main_pod_cidr           = "10.240.0.0/20"
+gke_main_control_plane_cidr = "10.253.0.0/28"
+
+gke_test_subnet_self_link   = "projects/pjt-d-shared-base/regions/asia-northeast3/subnetworks/subnet-dev-cicd-gke-01-an3-test"
+gke_test_pod_range_name     = "pods-dev-cicd-gke-01-an3-test"
+gke_test_pod_cidr           = "10.240.32.0/22"
+gke_test_control_plane_cidr = "10.253.0.16/28"
+
+cloudrun_subnet_name              = "subnet-dev-cicd-run-01-an3-egress"
+cloudbuild_private_pool_ip_range  = "10.250.0.0/24"
+
+enable_cloud_run_service_changes = false
+enable_cloud_run_shared_vpc_iam  = false
+enable_gke_cluster_changes       = false
+
+github_owner      = "sonmap"
+github_repository = "Gcp_Managed_GKE_GIT_ETC_09"
+github_branch     = "main"
