@@ -38,7 +38,6 @@ output "foundation_executor_bootstrap" {
   value = {
     service_account = var.foundation_executor_service_account
     shared_vpc_host = [
-      "roles/compute.networkViewer",
       "roles/compute.networkUser on ${var.gke_main_subnet_name}",
       "roles/compute.networkUser on ${var.gke_test_subnet_name}",
     ]
