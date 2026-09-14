@@ -114,7 +114,14 @@ resource "google_compute_subnetwork_iam_member" "task_vm" {
   member     = "serviceAccount:${var.task_vm_service_account_email}"
 }
 
+# Optional because the Foundation executor can have subnet/network permissions
+# without compute.firewalls.create in the Shared VPC host project.
+# Set create_health_check_firewall=true only when the execution identity has
+# permission to manage firewall rules (for example roles/compute.securityAdmin),
+# or have the network/security team create the equivalent rule separately.
 resource "google_compute_firewall" "health_checks_to_main_pods" {
+  count = var.create_health_check_firewall ? 1 : 0
+
   project            = var.shared_vpc_host_project_id
   name               = "fw-dev-sbx-gke-allow-l7-healthcheck"
   network            = data.google_compute_network.shared.name
