@@ -37,7 +37,8 @@
   },
   "data": {
     "bigquery_dataset": "sbx01_main",
-    "gcs_bucket": "pjt-net-hub-base-sbx01-data"
+    "gcs_bucket": "pjt-net-hub-base-sbx01-data",
+    "adopt_existing_resources": true
   },
   "gke": {
     "project_id": "pjt-d-host01",
