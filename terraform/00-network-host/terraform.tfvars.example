@@ -35,6 +35,7 @@ task_name                     = "sbx01"
 task_subnet_cidr              = "172.31.110.0/24"
 task_vm_service_account_email = "40744085720-compute@developer.gserviceaccount.com"
 
-# Required for the GKE JupyterHub Internal ALB health check path.
-# The execution identity must have compute.firewalls.create in pjt-d-shared-base.
-create_health_check_firewall = true
+# Disabled for the normal executor, which does not have compute.firewalls.create.
+# A network/security administrator must explicitly enable both switches.
+enable_firewall_changes      = false
+create_health_check_firewall = false
