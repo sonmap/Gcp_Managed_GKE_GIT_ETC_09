@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0",
-  "request_id": "REQ-20260914-002",
+  "request_id": "REQ-20260914-003",
   "approval": {
     "status": "APPROVED",
-    "approval_id": "APR-20260914-002",
-    "approved_at": "2026-09-14T23:00:00+09:00"
+    "approval_id": "APR-20260914-003",
+    "approved_at": "2026-09-14T23:30:00+09:00"
   },
   "action": "CREATE",
   "task": {
@@ -47,9 +47,9 @@
     "jupyter_domain": "jupyter-sbx01.sonmap.net"
   },
   "source": {
-    "release_id": "release-20260914-01",
-    "archive_uri": "gs://prj-b-cicd-local-236d-sandbox-bundles/platform-releases/release-20260914-01/sandbox-source.zip",
-    "generation": 1789393511754807,
-    "sha256": "f6a8d6cde5d6c1440c1b9c693f23915f0245372ea13885cbf982ab3e2430c9ca"
+    "release_id": "release-20260914-02",
+    "archive_uri": "gs://prj-b-cicd-local-236d-sandbox-bundles/platform-releases/release-20260914-02/sandbox-source.zip",
+    "generation": 1789398195431128,
+    "sha256": "6337e6e6bf4abbf72ba7e2b750785fc53dc4745dbf75b65bde7ea7111e1ed9b9"
   }
 }
