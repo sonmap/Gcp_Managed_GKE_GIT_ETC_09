@@ -95,7 +95,19 @@ variable "enable_cloud_run_shared_vpc_iam" {
 variable "enable_gke_cluster_changes" {
   type        = bool
   default     = false
-  description = "Create Foundation GKE clusters. Enable only after Shared VPC Network User and container.clusters.create permissions are confirmed."
+  description = "Deprecated aggregate GKE gate. Prefer the independent main and test gates."
+}
+
+variable "enable_gke_main_cluster_changes" {
+  type        = bool
+  default     = false
+  description = "Create the Main JupyterHub cluster in pjt-d-host01."
+}
+
+variable "enable_gke_test_cluster_changes" {
+  type        = bool
+  default     = false
+  description = "Create the CI/CD Python test cluster in prj-b-cicd-local-236d."
 }
 
 variable "cloudbuild_private_pool_ip_range" {
