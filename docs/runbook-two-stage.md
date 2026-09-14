@@ -15,16 +15,18 @@ git checkout main
 git pull --ff-only
 
 cd terraform/01-foundation
-cp terraform.tfvars.example terraform.tfvars
+test -f terraform.tfvars || cp terraform.tfvars.example terraform.tfvars
 
 terraform init -reconfigure \
   -backend-config="bucket=tfstate-sbx-cicd-236d-40744085720" \
   -backend-config="prefix=foundation"
 
 terraform validate
-terraform plan -out=foundation.tfplan
+terraform plan -input=false -out=foundation.tfplan
 terraform show -no-color foundation.tfplan
 ```
+
+Foundation의 확정 네트워크 값은 `variables.tf`에도 안전한 기본값으로 선언되어 있으므로 Plan이 대화형 변수 입력을 요구하지 않아야 합니다. 입력 프롬프트가 나오면 값을 임의로 입력하지 말고 중단합니다.
 
 Plan에 기존 GKE, Shared VPC, State Bucket의 삭제 또는 교체가 없을 때만 실행합니다.
 
