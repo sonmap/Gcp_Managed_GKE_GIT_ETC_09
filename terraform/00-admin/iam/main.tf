@@ -87,6 +87,24 @@ resource "google_project_iam_member" "foundation_executor_cicd_gke_admin" {
   member  = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
+# The Google provider reads the managed instance groups behind the Autopilot
+# node pool after cluster creation.
+resource "google_project_iam_member" "foundation_executor_cicd_compute_viewer" {
+  count = local.full_scope && var.manage_foundation_executor_cicd_iam ? 1 : 0
+
+  project = var.cicd_project_id
+  role    = "roles/compute.viewer"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+resource "google_project_iam_member" "foundation_executor_cicd_workflows_admin" {
+  count = local.full_scope && var.manage_foundation_executor_cicd_iam ? 1 : 0
+
+  project = var.cicd_project_id
+  role    = "roles/workflows.admin"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
 # Cloud Run Direct VPC egress IAM. Disabled unless full scope is explicitly
 # unlocked by an IAM administrator.
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
