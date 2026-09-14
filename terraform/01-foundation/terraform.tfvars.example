@@ -25,7 +25,7 @@ cloudbuild_private_pool_ip_range = "10.250.0.0/24"
 state_bucket_name = "tfstate-sbx-cicd-236d-40744085720"
 github_owner      = "sonmap"
 github_repository = "Gcp_Managed_GKE_GIT_ETC_09"
-github_branch     = "feat/two-stage-sandbox-platform"
+github_branch     = "main"
 
 foundation_executor_service_account = "40744085720-compute@developer.gserviceaccount.com"
 provisioner_ingress                 = "INGRESS_TRAFFIC_ALL"
