@@ -1,6 +1,6 @@
 # Git-managed staged execution profile.
-# Main GKE remains disabled until pjt-d-host01 IAM is approved. CI/CD Test GKE,
-# Cloud Run, and Workflow are enabled after their subnet IAM bootstrap.
+# pjt-d-host01 IAM bootstrap is complete. Main and CI/CD Test GKE,
+# Cloud Run, and Workflow are enabled. Deletion protection remains disabled for the PoC.
 
 cicd_project_id            = "prj-b-cicd-local-236d"
 shared_vpc_host_project_id = "pjt-d-shared-base"
@@ -19,14 +19,14 @@ gke_test_pod_range_name     = "pods-dev-cicd-gke-01-an3-test"
 gke_test_pod_cidr           = "10.240.32.0/22"
 gke_test_control_plane_cidr = "10.253.0.16/28"
 
-cloudrun_subnet_name              = "subnet-dev-cicd-run-01-an3-egress"
-cloudbuild_private_pool_ip_range  = "10.250.0.0/24"
+cloudrun_subnet_name             = "subnet-dev-cicd-run-01-an3-egress"
+cloudbuild_private_pool_ip_range = "10.250.0.0/24"
 
 enable_cloud_run_service_changes = true
 enable_cloud_run_shared_vpc_iam  = false
 gke_deletion_protection          = false
 enable_gke_cluster_changes       = false
-enable_gke_main_cluster_changes  = false
+enable_gke_main_cluster_changes  = true
 enable_gke_test_cluster_changes  = true
 
 github_owner      = "sonmap"
