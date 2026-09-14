@@ -30,12 +30,7 @@ Foundation의 확정 네트워크 값은 `variables.tf`에도 안전한 기본�
 
 기본 실행 계정의 확정 네트워크 값과 안전 게이트는 Git에서 관리하는 `zz-foundation-safe.auto.tfvars`가 자동 적용합니다. 사용자가 로컬 `terraform.tfvars`를 수정할 필요가 없습니다. 이 파일은 기존 로컬 변수 파일보다 나중에 로드되어 오래된 서브넷명이나 권한 스위치가 다시 적용되는 것을 막습니다.
 
-기존 서비스 계정 때문에 409가 발생했거나 부분 Apply 후 재실행하는 경우 먼저 저장소의 Import 도우미를 실행합니다.
-
-```bash
-bash import-existing-service-accounts.sh
-bash import-existing-service-accounts.sh --apply
-```
+기존 Infrastructure Manager 서비스 계정 4개는 `migrations.tf`의 선언형 `import` 블록으로 관리합니다. 별도 로컬 Import 명령 없이 `terraform plan/apply` 과정에서 State에 연결됩니다. Import 도우미 스크립트는 진단용으로만 유지합니다.
 
 Plan에 기존 GKE, Shared VPC, State Bucket의 삭제 또는 교체가 없을 때만 실행합니다.
 
