@@ -1,5 +1,7 @@
 # Main JupyterHub cluster in the GKE service project.
 resource "google_container_cluster" "sandbox" {
+  count = var.enable_gke_cluster_changes ? 1 : 0
+
   provider = google-beta
   project  = var.gke_project_id
   name     = var.gke_cluster_name
@@ -30,6 +32,8 @@ resource "google_container_cluster" "sandbox" {
 
 # Small Autopilot cluster in the CI/CD project for Python program tests.
 resource "google_container_cluster" "cicd_test" {
+  count = var.enable_gke_cluster_changes ? 1 : 0
+
   provider = google-beta
   project  = var.cicd_project_id
   name     = var.cicd_test_gke_cluster_name
