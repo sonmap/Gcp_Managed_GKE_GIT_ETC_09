@@ -5,7 +5,8 @@ locals {
     "serviceusage.googleapis.com", "servicenetworking.googleapis.com",
     "config.googleapis.com", "cloudresourcemanager.googleapis.com",
     "cloudbilling.googleapis.com", "iamcredentials.googleapis.com",
-    "admin.googleapis.com", "compute.googleapis.com"
+    "admin.googleapis.com", "compute.googleapis.com",
+    "container.googleapis.com"
   ])
   gke_apis = toset(["container.googleapis.com", "compute.googleapis.com"])
 }
@@ -24,7 +25,6 @@ resource "google_project_service" "gke" {
   service            = each.value
   disable_on_destroy = false
 }
-
 
 # This provider version has no google_project_service_identity resource.
 # Create the Infrastructure Manager service agent with gcloud, then Terraform
