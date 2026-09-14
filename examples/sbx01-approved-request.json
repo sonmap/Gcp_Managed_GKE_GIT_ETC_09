@@ -47,9 +47,9 @@
     "jupyter_domain": "jupyter-sbx01.sonmap.net"
   },
   "source": {
-    "release_id": "REPLACE_AFTER_SOURCE_PUBLISH",
-    "archive_uri": "REPLACE_AFTER_SOURCE_PUBLISH",
-    "generation": 0,
-    "sha256": "REPLACE_AFTER_SOURCE_PUBLISH"
+    "release_id": "release-20260914-01",
+    "archive_uri": "gs://prj-b-cicd-local-236d-sandbox-bundles/platform-releases/release-20260914-01/sandbox-source.zip",
+    "generation": 1789393511754807,
+    "sha256": "f6a8d6cde5d6c1440c1b9c693f23915f0245372ea13885cbf982ab3e2430c9ca"
   }
 }
