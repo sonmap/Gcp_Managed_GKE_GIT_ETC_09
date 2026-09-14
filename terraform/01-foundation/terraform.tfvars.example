@@ -19,8 +19,12 @@ gke_test_pod_cidr           = "10.240.32.0/22"
 gke_test_control_plane_cidr = "10.253.0.16/28"
 cicd_test_gke_cluster_name  = "gke-dev-cicd-01-an3"
 
-cloudrun_subnet_self_link       = "projects/pjt-d-shared-base/regions/asia-northeast3/subnetworks/subnet-dev-cicd-run-01-an3-egress"
+cloudrun_subnet_name              = "subnet-dev-cicd-run-01-an3-egress"
 cloudbuild_private_pool_ip_range = "10.250.0.0/24"
+
+# Privileged cross-project/GKE operations are disabled for the normal executor.
+enable_cloud_run_shared_vpc_iam = false
+enable_gke_cluster_changes      = false
 
 state_bucket_name = "tfstate-sbx-cicd-236d-40744085720"
 github_owner      = "sonmap"
