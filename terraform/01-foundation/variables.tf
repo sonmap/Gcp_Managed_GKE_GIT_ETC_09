@@ -98,6 +98,12 @@ variable "enable_gke_cluster_changes" {
   description = "Deprecated aggregate GKE gate. Prefer the independent main and test gates."
 }
 
+variable "gke_deletion_protection" {
+  type        = bool
+  default     = false
+  description = "Enable GKE API deletion protection for production operation. Keep false during PoC create/delete testing."
+}
+
 variable "enable_gke_main_cluster_changes" {
   type        = bool
   default     = false
