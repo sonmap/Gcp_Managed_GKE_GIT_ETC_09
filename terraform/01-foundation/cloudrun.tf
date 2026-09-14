@@ -6,7 +6,7 @@ locals {
 # In Shared VPC, Cloud Run's Google-managed service agent must be allowed to
 # attach its Direct VPC Egress interface to the host-project subnet.
 resource "google_compute_subnetwork_iam_member" "cloud_run_service_agent_network_user" {
-  count = var.enable_cloud_run_shared_vpc_iam ? 1 : 0
+  count = var.enable_cloud_run_service_changes && var.enable_cloud_run_shared_vpc_iam ? 1 : 0
 
   provider   = google.host
   project    = var.shared_vpc_host_project_id
@@ -19,6 +19,8 @@ resource "google_compute_subnetwork_iam_member" "cloud_run_service_agent_network
 }
 
 resource "google_cloud_run_v2_service" "provisioner" {
+  count = var.enable_cloud_run_service_changes ? 1 : 0
+
   project  = var.cicd_project_id
   name     = "run-sandbox-provisioner"
   location = var.region
@@ -87,9 +89,11 @@ resource "google_cloud_run_v2_service" "provisioner" {
 }
 
 resource "google_cloud_run_v2_service_iam_member" "provisioner_invoker" {
+  count = var.enable_cloud_run_service_changes ? 1 : 0
+
   project  = var.cicd_project_id
   location = var.region
-  name     = google_cloud_run_v2_service.provisioner.name
+  name     = google_cloud_run_v2_service.provisioner[0].name
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.automation["portal"].email}"
 }
