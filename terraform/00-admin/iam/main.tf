@@ -18,7 +18,6 @@ locals {
   network_admin_host_roles = toset([
     "roles/compute.networkAdmin",
     "roles/compute.securityAdmin",
-    "roles/compute.xpnAdmin",
   ])
 
   workflow_gke_project_roles = toset([
