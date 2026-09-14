@@ -19,6 +19,12 @@ variable "cloudrun_subnet_name" {
   default = "subnet-dev-cicd-run-01-an3-egress"
 }
 
+variable "cicd_project_id" {
+  description = "CI/CD project containing Foundation resources."
+  type        = string
+  default     = "prj-b-cicd-local-236d"
+}
+
 variable "cicd_project_number" {
   description = "Numeric project number of prj-b-cicd-local-236d."
   type        = string
@@ -35,6 +41,22 @@ variable "existing_sandbox_project_id" {
   description = "Existing project approved for sandbox data resources."
   type        = string
   default     = "pjt-net-hub-base"
+}
+
+variable "foundation_executor_service_account" {
+  description = "Service account used by instance-son to execute Foundation Terraform."
+  type        = string
+  default     = "40744085720-compute@developer.gserviceaccount.com"
+}
+
+variable "gke_main_subnet_name" {
+  type    = string
+  default = "subnet-dev-sbx-gke-01-an3-main"
+}
+
+variable "gke_test_subnet_name" {
+  type    = string
+  default = "subnet-dev-cicd-gke-01-an3-test"
 }
 
 variable "workflow_service_account" {
@@ -74,6 +96,12 @@ variable "iam_scope" {
 
 variable "allow_full_scope" {
   description = "Additional safety gate. Cross-project/folder IAM requires enable_iam_changes=true, iam_scope=full, and allow_full_scope=true."
+  type        = bool
+  default     = false
+}
+
+variable "manage_foundation_executor_iam" {
+  description = "Grant the Foundation executor GKE administration and Shared VPC read/use permissions. Effective only in fully unlocked scope."
   type        = bool
   default     = false
 }
