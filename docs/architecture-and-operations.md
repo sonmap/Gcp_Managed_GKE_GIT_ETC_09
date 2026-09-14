@@ -74,12 +74,14 @@ Foundation만으로 조직·Folder·Billing·Shared VPC 권한을 스스로 획�
 | 실행 SA | 필요한 관리 범위 |
 |---|---|
 | `sa-im-project-factory` | 승인 Sandbox Folder의 Project Creator, Billing Account User, 생성 프로젝트의 IAM bootstrap 가능 권한 |
-| `sa-im-network-admin` | `pjt-d-shared-base`의 승인 범위 Network Admin 및 XPN Admin |
+| `sa-im-network-admin` | `pjt-d-shared-base`의 Network Admin + Security Admin, 공통 폴더의 XPN Admin |
 | `sa-im-project-iam` | 10-project가 신규 프로젝트에 bootstrap한 Project IAM Admin |
 | `sa-im-data-admin` | 10-project가 신규 프로젝트에 bootstrap한 BigQuery·Storage·Service Account 권한 |
 | `sa-im-gke-admin` | `pjt-d-host01`의 GKE 관리 권한 |
 | `sa-im-lb-admin` | `pjt-d-host01`의 Load Balancer·NEG 조회 권한 |
 | `sa-sandbox-group-admin` | Workspace Admin Console에서 Domain-wide Delegation 승인 |
+
+`roles/compute.securityAdmin`은 `00-network-host`의 GKE/ALB Health Check Firewall 규칙을 생성·수정할 때 필요합니다. `00-network-host`를 사용자 자격증명으로 직접 실행하는 경우에는 그 사용자에게도 동일한 Firewall 관리 권한이 별도로 필요합니다.
 
 Cloud Run 호출은 과제 사용자 Group이 아니라 `sa-sandbox-portal`만 허용합니다. 실제 포털 런타임 주체에는 이 SA를 가장할 수 있는 최소 권한을 별도로 부여합니다.
 
