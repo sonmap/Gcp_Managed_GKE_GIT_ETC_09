@@ -124,6 +124,16 @@ resource "google_project_iam_member" "foundation_executor_cicd_workflows_admin" 
   member  = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
+# Allows the VM Foundation executor to inspect Infrastructure Manager
+# deployments and revisions without granting deployment mutation privileges.
+resource "google_project_iam_member" "foundation_executor_cicd_config_viewer" {
+  count = local.full_scope && var.manage_foundation_executor_cicd_iam ? 1 : 0
+
+  project = var.cicd_project_id
+  role    = "roles/config.viewer"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
 # Cloud Run Direct VPC egress IAM. Disabled unless full scope is explicitly
 # unlocked by an IAM administrator.
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
