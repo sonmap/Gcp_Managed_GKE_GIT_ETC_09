@@ -32,3 +32,27 @@ moved {
   from = google_service_account_iam_member.foundation_executor_uses_terraform
   to   = google_service_account_iam_member.foundation_executor_uses_runtime_accounts["orchestrator"]
 }
+
+
+# Existing Infrastructure Manager service accounts were created before this
+# Foundation state. Declarative imports keep Git configuration and state
+# adoption in the same Terraform workflow.
+import {
+  to = google_service_account.automation["project_factory"]
+  id = "projects/prj-b-cicd-local-236d/serviceAccounts/sa-im-project-factory@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_service_account.automation["network_admin"]
+  id = "projects/prj-b-cicd-local-236d/serviceAccounts/sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_service_account.automation["project_iam"]
+  id = "projects/prj-b-cicd-local-236d/serviceAccounts/sa-im-project-iam@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
+import {
+  to = google_service_account.automation["data_admin"]
+  id = "projects/prj-b-cicd-local-236d/serviceAccounts/sa-im-data-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
