@@ -1,6 +1,6 @@
-# Git-managed execution profile.
-# Terraform loads this after terraform.tfvars, so stale ETC_08 local values do
-# not re-enable privileged resources or select retired subnet names.
+# Git-managed staged execution profile.
+# Main GKE remains disabled until pjt-d-host01 IAM is approved. CI/CD Test GKE,
+# Cloud Run, and Workflow are enabled after their subnet IAM bootstrap.
 
 cicd_project_id            = "prj-b-cicd-local-236d"
 shared_vpc_host_project_id = "pjt-d-shared-base"
@@ -22,9 +22,11 @@ gke_test_control_plane_cidr = "10.253.0.16/28"
 cloudrun_subnet_name              = "subnet-dev-cicd-run-01-an3-egress"
 cloudbuild_private_pool_ip_range  = "10.250.0.0/24"
 
-enable_cloud_run_service_changes = false
+enable_cloud_run_service_changes = true
 enable_cloud_run_shared_vpc_iam  = false
 enable_gke_cluster_changes       = false
+enable_gke_main_cluster_changes  = false
+enable_gke_test_cluster_changes  = true
 
 github_owner      = "sonmap"
 github_repository = "Gcp_Managed_GKE_GIT_ETC_09"
