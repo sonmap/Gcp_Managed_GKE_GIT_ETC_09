@@ -29,6 +29,6 @@ variable "task_vm_service_account_email" { type = string }
 
 variable "create_health_check_firewall" {
   type        = bool
-  description = "Create the GKE L7 health-check firewall in the Shared VPC host project. Enable only when the execution identity has compute.firewalls.create."
-  default     = false
+  description = "Create the GKE L7 health-check firewall in the Shared VPC host project. The execution identity must have compute.firewalls.create."
+  default     = true
 }
