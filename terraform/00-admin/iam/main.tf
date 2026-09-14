@@ -35,14 +35,6 @@ locals {
 
 # Foundation executor bootstrap. The caller applying this root must already be
 # IAM administrator on every selected project and Shared VPC subnet.
-resource "google_project_iam_member" "foundation_executor_host_viewer" {
-  count = local.full_scope && var.manage_foundation_executor_shared_vpc_iam ? 1 : 0
-
-  project = var.shared_vpc_host_project_id
-  role    = "roles/compute.networkViewer"
-  member  = "serviceAccount:${var.foundation_executor_service_account}"
-}
-
 resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_main_network_user" {
   count = local.full_scope && var.manage_foundation_executor_shared_vpc_iam ? 1 : 0
 
@@ -89,14 +81,6 @@ resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
   subnetwork = var.cloudrun_subnet_name
   role       = "roles/compute.networkUser"
   member     = "serviceAccount:${local.cloud_run_service_agent}"
-}
-
-resource "google_project_iam_member" "cloud_run_network_viewer" {
-  count = local.full_scope && var.manage_cloud_run_shared_vpc_iam ? 1 : 0
-
-  project = var.shared_vpc_host_project_id
-  role    = "roles/compute.networkViewer"
-  member  = "serviceAccount:${local.cloud_run_service_agent}"
 }
 
 # Existing sandbox project bootstrap IAM. Disabled unless full scope is unlocked.
