@@ -92,3 +92,15 @@ Cloud Run이 승인 JSON과 고정 Git Commit SHA를 검증한 후 Bundle GCS를
 - `pjt-c-admin`에는 Sandbox VM을 만들지 않습니다.
 - Jupyter Notebook은 `pjt-d-host01`의 GKE Autopilot Pod에서 실행합니다.
 - 2차는 `CREATE` 전용입니다. 삭제는 별도 보존/승인 Workflow가 필요합니다.
+
+
+## pjt-d-host01 권한 대기 중 단계 실행
+
+Main GKE 권한이 아직 승인되지 않은 동안 다음 구성만 활성화합니다.
+
+- CI/CD Test GKE: 활성화
+- Cloud Run Provisioner: 활성화
+- Workflow: 활성화
+- Main JupyterHub GKE: 비활성화
+
+Git 관리 파일 `zz-foundation-safe.auto.tfvars`가 이 상태를 자동 적용합니다. 먼저 Shared VPC IAM Root를 재실행하여 CI/CD 프로젝트의 GKE 관련 서비스 계정 3개에 Test Subnet Network User를 부여한 후 Foundation을 재실행합니다.
