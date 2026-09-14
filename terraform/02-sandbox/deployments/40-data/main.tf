@@ -9,18 +9,6 @@ resource "google_service_account" "jupyter" {
   display_name = "Jupyter ${var.task_name}"
 }
 
-# Existing sandbox data resources are adopted into the Infrastructure
-# Manager state instead of being recreated.
-import {
-  to = google_service_account.jupyter
-  id = "projects/${var.project_id}/serviceAccounts/gsa-jupyter-${var.task_name}@${var.project_id}.iam.gserviceaccount.com"
-}
-
-import {
-  to = google_bigquery_dataset.sandbox
-  id = "${var.project_id}:${var.bigquery_dataset}"
-}
-
 resource "google_bigquery_dataset" "sandbox" {
   project                    = var.project_id
   dataset_id                 = var.bigquery_dataset
