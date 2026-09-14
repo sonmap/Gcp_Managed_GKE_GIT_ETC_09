@@ -2,13 +2,16 @@
 
 교차 프로젝트/Folder IAM을 관리하는 관리자용 Terraform Root입니다.
 
-기존에는 모든 IAM 영역을 한 번에 읽고 변경했기 때문에, 실행 계정이 한 프로젝트나 Folder의 IAM 권한만 없어도 전체 Plan이 403으로 중단되었습니다. 현재는 영역별 `manage_*` 스위치로 분리되어 승인된 범위만 실행합니다.
+기존에는 모든 IAM 영역을 한 번에 읽고 변경했기 때문에, 실행 계정이 한 프로젝트나 Folder의 IAM 권한만 없어도 전체 Plan이 403으로 중단되었습니다. 현재는 영역별 `manage_*` 스위치와 이중 안전 게이트로 승인된 범위만 실행합니다.
 
 ## 현재 기본 실행 범위
 
 기본값은 Shared VPC Host의 네트워크 실행 계정 IAM만 활성화합니다.
 
 ```hcl
+iam_scope        = "network-host-only"
+allow_full_scope = false
+
 manage_cloud_run_shared_vpc_iam             = false
 manage_project_factory_existing_project_iam = false
 manage_network_admin_host_iam                = true
@@ -25,13 +28,16 @@ manage_workflow_shared_vpc_iam               = false
 
 `roles/compute.securityAdmin`은 GKE/Internal ALB Health Check Firewall 생성에 필요한 `compute.firewalls.create`를 제공합니다.
 
-Folder 수준 Shared VPC 연결 권한이 필요한 경우에만 다음을 별도로 활성화합니다.
+## Full Scope 이중 안전 게이트
+
+Cloud Run IAM, 기존 Sandbox IAM, Folder XPN IAM, Workflow IAM 같은 교차 프로젝트/Folder IAM은 다음 두 값을 동시에 명시해야만 활성화될 수 있습니다.
 
 ```hcl
-manage_network_admin_xpn_iam = true
+iam_scope        = "full"
+allow_full_scope = true
 ```
 
-이 경우 공통 Folder `154455658682`에 `roles/compute.xpnAdmin`을 관리하므로 실행 계정에 Folder IAM 조회/수정 권한이 필요합니다.
+둘 중 하나라도 충족하지 않으면 해당 `manage_* = true`가 로컬 `terraform.tfvars`에 남아 있어도 Resource 수는 0입니다. 기본 운영 모드에서는 `allow_full_scope = false`를 유지합니다.
 
 ## 중요한 Bootstrap 조건
 
