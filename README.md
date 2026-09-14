@@ -4,6 +4,8 @@
 
 상세한 관리 경계, 기존 State 보호, 실행 계정과 단계별 책임은 [docs/architecture-and-operations.md](docs/architecture-and-operations.md)를 먼저 확인합니다.
 
+Git에 포함된 파일별 역할은 [파일 카탈로그](docs/file-catalog.md)에서 확인합니다.
+
 실제 실행은 [1차 VM Foundation / 2차 GCS JSON Cloud Run 실행 문서](docs/runbook-two-stage.md)를 따릅니다.
 
 ## 실행 원칙
