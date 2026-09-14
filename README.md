@@ -122,3 +122,136 @@ terraform show -no-color foundation.tfplan | \
 ## 현재 자동화 범위
 
 이 버전의 승인 JSON Schema는 `CREATE`만 허용합니다. 삭제는 BigQuery/GCS 보존, Shared VPC 분리, 프로젝트 삭제와 Google Group 삭제의 역순 통제가 필요하므로 별도의 승인 JSON 및 Retention Workflow로 구현해야 합니다.
+
+
+## 2026-09 PoC 운영 현황 및 재실행 기준
+
+> 이 절은 `sbx01` 기존 프로젝트 PoC에서 확인한 실행 경계와 오류 수정 내역이다.
+> 실제 생성 여부는 Terraform Plan 및 Infrastructure Manager Revision으로 확인한다. 비용중지
+> 프로파일을 적용한 뒤에는 GKE, Cloud Run, Workflow가 삭제된 상태일 수 있다.
+
+### 확정된 대상 및 실행 계정
+
+| 구분 | 대상 | 주 실행 계정 | 비고 |
+|---|---|---|---|
+| Foundation | `prj-b-cicd-local-236d`, `pjt-d-host01`, Shared VPC | `40744085720-compute@developer.gserviceaccount.com` | VM 기본 서비스 계정 |
+| 관리자 IAM Bootstrap | Project/Folder IAM | `admin@sonmap.net` | 대상 IAM 정책 조회·변경 권한이 있을 때만 사용 |
+| 2차 Project | `pjt-net-hub-base` | `sa-im-project-factory` | 기존 프로젝트, 삭제 금지 |
+| 2차 Network | `pjt-d-shared-base` / `vpc-d-shared-base` | `sa-im-network-admin` | `subnet-sbx01-an3` 사용 |
+| 2차 Data | `pjt-net-hub-base` | `sa-im-data-admin` | 기존 Dataset/GSA 채택 가능 |
+| GKE | `pjt-d-host01/gke-sbx-main-an3` | `sa-im-gke-admin` | 과제 Namespace 및 JupyterHub |
+| CI/CD GKE | `prj-b-cicd-local-236d/gke-dev-cicd-01-an3` | Foundation 실행 계정 | Autopilot Test Cluster |
+
+일반 Foundation 실행 중에는 개인 ADC 로그인을 하지 않는다. VM 기본 서비스 계정을 사용하며,
+관리자 IAM Bootstrap에서만 관리자의 단기 Access Token 또는 관리자 인증을 사용한다.
+`GOOGLE_OAUTH_ACCESS_TOKEN`을 사용한 뒤에는 반드시 `unset GOOGLE_OAUTH_ACCESS_TOKEN` 한다.
+
+### 적용된 핵심 수정
+
+| 증상 | 원인 | Git 반영 해결 |
+|---|---|---|
+| Shared VPC IAM 403 | 일반 실행 계정에 대상 Project/Folder IAM 정책 조회 권한이 없음 | 관리자 전용 IAM 프로필과 관리영역별 Backend Prefix 분리 |
+| `compute.firewalls.create` 403 | Network Admin SA에 Firewall 권한 부족 | Host IAM에 `roles/compute.securityAdmin` 추가 |
+| `roles/compute.xpnAdmin` 400 | XPN Admin은 Project IAM Role이 아님 | Folder `154455658682`에만 `google_folder_iam_member`로 관리 |
+| GKE Subnet/GKE 생성 403 | Foundation 실행 계정의 Shared VPC Subnet 권한 부족 | 대상 Subnet별 `roles/compute.networkUser` Bootstrap |
+| 기존 GSA/Dataset 409 | 실제 자원이 존재하지만 Infrastructure Manager State에는 없음 | 승인 JSON의 `data.adopt_existing_resources=true`일 때 Cloud Run이 리터럴 ID `imports.tf` 생성 |
+| `Variables not allowed` in import | Terraform 1.5.7 import ID에 `var.*` 사용 | Root Module의 변수 기반 import 제거; 요청 Bundle에서 정적 import 생성 |
+| 서로 다른 IAM 프로필 적용 시 삭제 계획 | 서로 다른 관리영역이 같은 Terraform State Prefix 사용 | 프로필마다 독립 Backend Prefix 사용; Apply 전 삭제 주소 검토 |
+
+### 기존 Data 자원 채택 규칙
+
+`40-data` Root Module에는 import block을 직접 두지 않는다. Infrastructure Manager의
+Terraform 1.5.7은 import ID에서 변수를 지원하지 않는다.
+
+승인 JSON의 다음 값이 `true`이면 Cloud Run이 요청별 ZIP Bundle 안에 정적
+`imports.tf`를 생성한다.
+
+```json
+{
+  "data": {
+    "adopt_existing_resources": true
+  }
+}
+```
+
+현재 채택 대상은 기존 Jupyter GSA와 BigQuery Dataset이다. GCS Bucket의 존재 여부가
+확인되지 않은 상태에서는 Bucket import를 추가하지 않는다. 재실행에서 Bucket 409가
+발생할 때만 Git 소스에 Bucket 정적 import를 추가하고 새 release를 발행한다.
+
+### sbx01 재실행 절차
+
+현재 예시 요청은 `REQ-20260914-004`, `release-20260914-03`을 사용한다.
+실행 전에 Git 최신 상태와 Foundation 프로비저너 이미지를 먼저 반영한다.
+
+```bash
+cd ~/Gcp_Managed_GKE_GIT_ETC_09
+git pull --ff-only origin main
+
+unset GOOGLE_OAUTH_ACCESS_TOKEN
+gcloud config set account 40744085720-compute@developer.gserviceaccount.com
+
+cd terraform/01-foundation
+terraform plan -input=false -out=foundation.tfplan
+terraform show -no-color foundation.tfplan
+terraform apply foundation.tfplan
+```
+
+그 후 승인 JSON을 GCS에 새 Generation으로 업로드하고 Workflow를 실행한다.
+
+```bash
+cd ~/Gcp_Managed_GKE_GIT_ETC_09
+REQUEST_ID="REQ-20260914-004"
+REQUEST_URI="gs://prj-b-cicd-local-236d-sandbox-requests/approved/${REQUEST_ID}/request.json"
+
+gcloud storage cp examples/sbx01-approved-request.json "${REQUEST_URI}"
+REQUEST_GENERATION=$(gcloud storage objects describe "${REQUEST_URI}" --format="value(generation)")
+REQUEST_SHA256=$(gcloud storage cat "${REQUEST_URI}" | sha256sum | awk '{print $1}')
+
+gcloud workflows run workflow-dev-sbx-01-an3-provision \
+  --project=prj-b-cicd-local-236d \
+  --location=asia-northeast3 \
+  --data="$(jq -nc \
+    --arg request_id "${REQUEST_ID}" \
+    --arg approved_json_uri "${REQUEST_URI}" \
+    --arg generation "${REQUEST_GENERATION}" \
+    --arg sha256 "${REQUEST_SHA256}" \
+    '{request_id:$request_id, approved_json_uri:$approved_json_uri, generation:($generation|tonumber), sha256:$sha256}')"
+```
+
+Workflow의 `SUCCEEDED`는 요청 접수와 Cloud Build 시작 성공을 뜻한다. 최종 상태는 다음으로
+확인한다.
+
+```bash
+gcloud builds list --project=prj-b-cicd-local-236d --region=asia-northeast3 \
+  --limit=5 --sort-by="~createTime" --format="table(id,status,createTime)"
+
+gcloud infra-manager deployments list --project=prj-b-cicd-local-236d \
+  --location=asia-northeast3 --filter="name:im-sbx01" \
+  --format="table(name.basename(),state,latestRevision.basename())"
+```
+
+### 비용중지 및 재시작
+
+전면 `terraform destroy`는 State Bucket, IAM, Artifact Registry까지 제거할 수 있으므로 금지한다.
+비용중지는 Foundation Root의 Git 관리 프로파일을 사용한다. 이 프로파일은 GKE Main/Test,
+Cloud Run, Workflow만 삭제하고 State·요청/Bundle Bucket·자동화 Service Account·IAM·기존
+`pjt-net-hub-base` 자원은 보존한다.
+
+```bash
+cd terraform/01-foundation
+terraform plan -input=false \
+  -var-file=foundation-cost-stop.tfvars \
+  -out=foundation-cost-stop.tfplan
+terraform show -no-color foundation-cost-stop.tfplan
+terraform apply foundation-cost-stop.tfplan
+```
+
+Private Pool까지 중지해야 할 때만 다음 Target Destroy를 별도로 실행한다. 다음 정상
+Foundation Apply에서 Pool은 다시 생성된다.
+
+```bash
+terraform destroy -target=google_cloudbuild_worker_pool.terraform -auto-approve
+```
+
+`terraform/00-admin/iam`과 기존 프로젝트의 2차 Infrastructure Manager Deployment는 비용중지
+목적으로 삭제하지 않는다. IAM, 기존 Dataset/GSA, Shared VPC 연결의 드리프트를 막기 위함이다.
