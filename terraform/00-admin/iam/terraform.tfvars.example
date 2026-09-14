@@ -9,8 +9,10 @@ workflow_service_account        = "sa-sandbox-workflow@prj-b-cicd-local-236d.iam
 project_factory_service_account = "sa-im-project-factory@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 network_admin_service_account   = "sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 
-# IAM domains are intentionally separated so one missing cross-project/folder
-# permission does not block every IAM plan. Enable only approved scopes.
+iam_scope = "network-host-only"
+
+# In network-host-only mode, only the Shared VPC host IAM for sa-im-network-admin
+# is eligible for management. The flags below are retained for later full-scope use.
 manage_cloud_run_shared_vpc_iam             = false
 manage_project_factory_existing_project_iam = false
 manage_network_admin_host_iam                = true
