@@ -1,10 +1,36 @@
 shared_vpc_host_project_id = "pjt-d-shared-base"
-network_name = "vpc-d-shared-base"
-region = "asia-northeast3"
-gke_subnet_name = "REPLACE_EXISTING_GKE_SUBNET"
-cloudrun_subnet_cidr = "172.31.102.0/26"
-cloudbuild_psa_cidr = "172.31.100.0/24"
-task_name = "sbx01"
-task_subnet_cidr = "172.31.110.0/24"
+network_name                 = "vpc-d-shared-base"
+region                       = "asia-northeast3"
+
+# User ingress and Internal Application Load Balancer frontend remain on 172.31.x.
+internal_alb_frontend_subnet_name = "subnet-dev-sbx-ing-01-an3-ilb"
+internal_alb_frontend_subnet_cidr = "172.31.104.0/29"
+jupyter_internal_alb_ip_name      = "prip-dev-sbx-int-01-an3-jupyter"
+jupyter_internal_alb_ip           = "172.31.104.4"
+
+# Google Envoy proxy-only subnet. Confirm 10.254.0.0/26 has no on-premises overlap.
+internal_alb_proxy_subnet_name = "subnet-dev-sbx-proxy-01-an3-ilb"
+internal_alb_proxy_subnet_cidr = "10.254.0.0/26"
+
+# Main JupyterHub GKE Autopilot cluster in pjt-d-host01.
+gke_main_subnet_name    = "subnet-dev-sbx-gke-01-an3-main"
+gke_main_subnet_cidr    = "10.252.0.0/24"
+gke_main_pod_range_name = "pods-dev-sbx-gke-01-an3-main"
+gke_main_pod_cidr       = "10.240.0.0/20"
+
+# Python test GKE Autopilot cluster in prj-b-cicd-local-236d.
+gke_test_subnet_name    = "subnet-dev-cicd-gke-01-an3-test"
+gke_test_subnet_cidr    = "10.252.1.0/26"
+gke_test_pod_range_name = "pods-dev-cicd-gke-01-an3-test"
+gke_test_pod_cidr       = "10.240.32.0/22"
+
+cloudrun_subnet_name = "subnet-dev-cicd-run-01-an3-egress"
+cloudrun_subnet_cidr = "10.251.0.0/26"
+
+# Private Pool VPC peering range; this is not a normal subnet.
+cloudbuild_psa_name = "prip-dev-cicd-cbp-01-an3-psa"
+cloudbuild_psa_cidr = "10.250.0.0/24"
+
+task_name                     = "sbx01"
+task_subnet_cidr              = "172.31.110.0/24"
 task_vm_service_account_email = "40744085720-compute@developer.gserviceaccount.com"
-gke_pod_cidr = "10.240.0.0/20"
