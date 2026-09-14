@@ -104,3 +104,8 @@ Main GKE 권한이 아직 승인되지 않은 동안 다음 구성만 활성화�
 - Main JupyterHub GKE: 비활성화
 
 Git 관리 파일 `zz-foundation-safe.auto.tfvars`가 이 상태를 자동 적용합니다. 먼저 Shared VPC IAM Root를 재실행하여 CI/CD 프로젝트의 GKE 관련 서비스 계정 3개에 Test Subnet Network User를 부여한 후 Foundation을 재실행합니다.
+
+
+## Test GKE 부분 생성 복구
+
+Test GKE 생성 후 Instance Group Manager 조회에서 권한 오류가 발생한 경우 CI/CD IAM 프로필을 다시 적용하여 Foundation 실행 계정에 `roles/compute.viewer`와 `roles/workflows.admin`을 추가합니다. `migrations.tf`의 선언형 Import가 이미 생성된 `gke-dev-cicd-01-an3`을 Foundation State에 연결합니다.
