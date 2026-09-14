@@ -55,6 +55,22 @@ resource "google_compute_subnetwork_iam_member" "foundation_executor_gke_test_ne
   member     = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
+# GKE Shared VPC requires the service project's GKE, Cloud Services, and
+# default Compute service accounts to use the selected subnet.
+resource "google_compute_subnetwork_iam_member" "cicd_test_gke_service_accounts_network_user" {
+  for_each = local.full_scope && var.manage_foundation_executor_shared_vpc_iam ? toset([
+    "service-${var.cicd_project_number}@container-engine-robot.iam.gserviceaccount.com",
+    "${var.cicd_project_number}@cloudservices.gserviceaccount.com",
+    "${var.cicd_project_number}-compute@developer.gserviceaccount.com",
+  ]) : toset([])
+
+  project    = var.shared_vpc_host_project_id
+  region     = var.region
+  subnetwork = var.gke_test_subnet_name
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:${each.value}"
+}
+
 resource "google_project_iam_member" "foundation_executor_gke_admin" {
   count = local.full_scope && var.manage_foundation_executor_gke_project_iam ? 1 : 0
 
