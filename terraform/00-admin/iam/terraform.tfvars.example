@@ -9,15 +9,16 @@ workflow_service_account        = "sa-sandbox-workflow@prj-b-cicd-local-236d.iam
 project_factory_service_account = "sa-im-project-factory@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 network_admin_service_account   = "sa-im-network-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 
-iam_scope        = "network-host-only"
-allow_full_scope = false
+# Global bootstrap gate: false means this root creates zero IAM resources.
+enable_iam_changes = false
+iam_scope          = "network-host-only"
+allow_full_scope   = false
 
-# Current approved scope: only sa-im-network-admin roles in pjt-d-shared-base.
-# Other IAM domains remain disabled unless iam_scope="full" AND
-# allow_full_scope=true are both explicitly set.
+# All IAM domains are disabled by default. An IAM administrator must explicitly
+# enable the global gate and only the approved manage_* switches.
 manage_cloud_run_shared_vpc_iam             = false
 manage_project_factory_existing_project_iam = false
-manage_network_admin_host_iam                = true
+manage_network_admin_host_iam                = false
 manage_network_admin_xpn_iam                 = false
 manage_workflow_gke_iam                      = false
 manage_workflow_existing_project_iam         = false
