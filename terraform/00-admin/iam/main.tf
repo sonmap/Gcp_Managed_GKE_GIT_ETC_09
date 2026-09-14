@@ -9,6 +9,7 @@ locals {
 
   network_admin_host_roles = toset([
     "roles/compute.networkAdmin",
+    "roles/compute.securityAdmin",
   ])
 
   workflow_gke_project_roles = toset([
@@ -48,8 +49,8 @@ resource "google_project_iam_member" "project_factory_existing_project_roles" {
   member  = "serviceAccount:${var.project_factory_service_account}"
 }
 
-# The Infrastructure Manager network deployment creates subnets in the
-# Shared VPC host project.
+# The Infrastructure Manager network deployment creates subnets and, when
+# enabled, Shared VPC firewall rules in the host project.
 resource "google_project_iam_member" "network_admin_host_roles" {
   for_each = local.network_admin_host_roles
 
