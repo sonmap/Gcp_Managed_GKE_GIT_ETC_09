@@ -80,6 +80,12 @@ variable "cloudrun_subnet_name" {
   default = "subnet-dev-cicd-run-01-an3-egress"
 }
 
+variable "enable_cloud_run_service_changes" {
+  type        = bool
+  default     = false
+  description = "Create Cloud Run and dependent Workflow resources. Enable only after Shared VPC subnet IAM is granted."
+}
+
 variable "enable_cloud_run_shared_vpc_iam" {
   type        = bool
   default     = false
