@@ -109,3 +109,8 @@ Git 관리 파일 `zz-foundation-safe.auto.tfvars`가 이 상태를 자동 적�
 ## Test GKE 부분 생성 복구
 
 Test GKE 생성 후 Instance Group Manager 조회에서 권한 오류가 발생한 경우 CI/CD IAM 프로필을 다시 적용하여 Foundation 실행 계정에 `roles/compute.viewer`와 `roles/workflows.admin`을 추가합니다. `migrations.tf`의 선언형 Import가 이미 생성된 `gke-dev-cicd-01-an3`을 Foundation State에 연결합니다.
+
+
+## GKE 삭제·교체 보호
+
+Main/Test GKE 모두 GKE `deletion_protection = true`와 Terraform `lifecycle.prevent_destroy = true`를 적용합니다. 이후 Plan에 클러스터 교체가 필요하더라도 Apply 단계에서 차단되며, Git 검토 없이 삭제 보호를 해제하지 않습니다.
