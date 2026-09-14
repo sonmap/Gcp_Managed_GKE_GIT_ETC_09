@@ -56,3 +56,12 @@ import {
   to = google_service_account.automation["data_admin"]
   id = "projects/prj-b-cicd-local-236d/serviceAccounts/sa-im-data-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 }
+
+
+# The first Autopilot creation reached the node-pool read phase before the
+# executor had compute.instanceGroupManagers.list. Adopt the cluster if the
+# provider could not persist it in state; this is a no-op when already managed.
+import {
+  to = google_container_cluster.cicd_test[0]
+  id = "projects/prj-b-cicd-local-236d/locations/asia-northeast3/clusters/gke-dev-cicd-01-an3"
+}
