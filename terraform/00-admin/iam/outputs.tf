@@ -16,3 +16,15 @@ output "network_admin_roles" {
     ["roles/compute.xpnAdmin"],
   )
 }
+
+output "workflow_service_account" {
+  value = var.workflow_service_account
+}
+
+output "workflow_cross_project_roles" {
+  value = {
+    gke_project      = sort(tolist(local.workflow_gke_project_roles))
+    existing_project = sort(tolist(local.workflow_existing_project_roles))
+    shared_vpc_host  = sort(tolist(local.workflow_shared_vpc_roles))
+  }
+}
