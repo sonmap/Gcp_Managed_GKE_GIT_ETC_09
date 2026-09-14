@@ -10,6 +10,18 @@ locals {
   network_admin_host_roles = toset([
     "roles/compute.networkAdmin",
   ])
+
+  workflow_gke_project_roles = toset([
+    "roles/container.developer",
+  ])
+
+  workflow_existing_project_roles = toset([
+    "roles/browser",
+  ])
+
+  workflow_shared_vpc_roles = toset([
+    "roles/compute.networkViewer",
+  ])
 }
 
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
@@ -52,4 +64,34 @@ resource "google_folder_iam_member" "network_admin_shared_vpc_admin" {
   folder = var.shared_vpc_admin_folder_id
   role   = "roles/compute.xpnAdmin"
   member = "serviceAccount:${var.network_admin_service_account}"
+}
+
+# Workflow is allowed to manage Kubernetes workloads, but not to create,
+# delete, or reconfigure the pjt-d-host01 GKE cluster infrastructure.
+resource "google_project_iam_member" "workflow_gke_project_roles" {
+  for_each = local.workflow_gke_project_roles
+
+  project = var.gke_project_id
+  role    = each.value
+  member  = "serviceAccount:${var.workflow_service_account}"
+}
+
+# Workflow can verify the approved existing sandbox project. Data mutation
+# remains delegated to sa-im-data-admin.
+resource "google_project_iam_member" "workflow_existing_project_roles" {
+  for_each = local.workflow_existing_project_roles
+
+  project = var.existing_sandbox_project_id
+  role    = each.value
+  member  = "serviceAccount:${var.workflow_service_account}"
+}
+
+# Workflow may inspect Shared VPC resources; network mutation remains delegated
+# to sa-im-network-admin.
+resource "google_project_iam_member" "workflow_shared_vpc_roles" {
+  for_each = local.workflow_shared_vpc_roles
+
+  project = var.shared_vpc_host_project_id
+  role    = each.value
+  member  = "serviceAccount:${var.workflow_service_account}"
 }
