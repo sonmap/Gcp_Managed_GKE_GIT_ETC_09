@@ -89,3 +89,24 @@ terraform apply admin-iam.tfplan
 정상적인 기본 Plan 결과는 IAM Resource의 생성·변경·삭제가 없는 상태입니다.
 
 이 Root는 프로젝트, Network, Subnet, NAT 자체를 생성하거나 삭제하지 않습니다. IAM Binding만 선택적으로 관리합니다.
+
+
+## 기존 IAM State 403 자동 정리
+
+`enable_iam_changes = false`인데도 Plan의 Refresh 단계에서 403이 발생하면, 과거 IAM Resource가 State에 남아 있는 상태입니다. 저장소의 정리 스크립트를 사용합니다.
+
+먼저 Dry Run으로 제거 대상만 확인합니다.
+
+```bash
+bash cleanup-disabled-iam-state.sh
+```
+
+목록을 확인한 후 State 백업과 정리를 실행합니다.
+
+```bash
+bash cleanup-disabled-iam-state.sh --apply
+terraform plan -out=admin-iam.tfplan
+terraform show -no-color admin-iam.tfplan
+```
+
+스크립트는 실제 GCP IAM Binding을 삭제하지 않고 해당 주소를 Terraform State에서만 제거합니다. 실행 전에 현재 State를 `admin-iam-state-backup-<UTC시각>.json`으로 저장합니다.
