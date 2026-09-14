@@ -1,22 +1,24 @@
 locals {
   provisioner_image_uri = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/run-sandbox-provisioner:latest"
   automation_image_uri  = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/sandbox-automation-runner:latest"
+
   provisioner_source_hash = sha256(join("", [
     filesha256("${path.module}/../../cloudrun-provisioner/Dockerfile"),
     filesha256("${path.module}/../../cloudrun-provisioner/main.py"),
     filesha256("${path.module}/../../cloudrun-provisioner/requirements.txt"),
     filesha256("${path.module}/../../cloudrun-provisioner/sandbox-request.schema.json"),
   ]))
+
   automation_source_hash = sha256(join("", [
     filesha256("${path.module}/../../automation-runner/Dockerfile"),
     filesha256("${path.module}/../../automation-runner/requirements.txt"),
-    filesha256("${path.module}/../../automation-runner/apply_gke_workload.py"),
     filesha256("${path.module}/../../automation-runner/apply_gke_workload.py"),
   ]))
 }
 
 resource "terraform_data" "automation_image" {
   triggers_replace = [local.automation_image_uri, local.automation_source_hash]
+
   provisioner "local-exec" {
     command = <<-EOT
       gcloud builds submit "${path.module}/../../automation-runner" \
@@ -28,6 +30,7 @@ resource "terraform_data" "automation_image" {
         --quiet
     EOT
   }
+
   depends_on = [
     google_artifact_registry_repository.platform,
     google_artifact_registry_repository_iam_member.cloud_build_writer,
@@ -39,18 +42,22 @@ resource "google_cloudbuild_worker_pool" "terraform" {
   project  = var.cicd_project_id
   name     = "pool-sandbox-terraform"
   location = var.region
+
   worker_config {
     disk_size_gb   = 100
     machine_type   = "e2-standard-4"
     no_external_ip = true
   }
+
   network_config {
-    peered_network = var.shared_vpc_network_self_link
+    peered_network          = var.shared_vpc_network_self_link
+    peered_network_ip_range = var.cloudbuild_private_pool_ip_range
   }
 }
 
 resource "terraform_data" "provisioner_image" {
   triggers_replace = [local.provisioner_image_uri, local.provisioner_source_hash]
+
   provisioner "local-exec" {
     command = <<-EOT
       gcloud builds submit "${path.module}/../../cloudrun-provisioner" \
@@ -62,6 +69,7 @@ resource "terraform_data" "provisioner_image" {
         --quiet
     EOT
   }
+
   depends_on = [
     google_artifact_registry_repository.platform,
     google_artifact_registry_repository_iam_member.cloud_build_writer,
@@ -98,9 +106,9 @@ resource "google_cloudbuild_trigger" "sandbox_orchestrate" {
     _DATA_ADMIN_SA           = google_service_account.automation["data_admin"].email
     _GKE_ADMIN_SA            = google_service_account.automation["gke_admin"].email
     _LB_ADMIN_SA             = google_service_account.automation["lb_admin"].email
-    _JUPYTER_CHART            = var.jupyter_chart_uri
-    _JUPYTER_CHART_VERSION    = var.jupyter_chart_version
-    _AUTOMATION_IMAGE         = local.automation_image_uri
+    _JUPYTER_CHART           = var.jupyter_chart_uri
+    _JUPYTER_CHART_VERSION   = var.jupyter_chart_version
+    _AUTOMATION_IMAGE        = local.automation_image_uri
   }
 
   depends_on = [
