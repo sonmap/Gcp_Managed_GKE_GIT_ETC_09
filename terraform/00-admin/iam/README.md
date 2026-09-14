@@ -164,3 +164,27 @@ Shared VPC Host Project의 프로젝트 IAM 변경 권한이 없는 운영 경�
 - Cloud Run 서비스 에이전트의 `roles/compute.networkViewer`
 
 대신 각 대상 Subnet의 `roles/compute.networkUser`만 관리합니다. 이 역할은 Cloud Run Direct VPC와 GKE Shared VPC의 Subnet 사용에 필요한 조회·사용 권한을 제공합니다.
+
+
+## 확인된 IAM 제약과 적용 규칙
+
+- `roles/compute.xpnAdmin`은 Project IAM에 지원되지 않는다. 반드시 Shared VPC 관리
+  Folder `154455658682`의 `google_folder_iam_member`로만 적용한다.
+- `roles/compute.securityAdmin`은 Host Project Firewall 생성 권한
+  (`compute.firewalls.create`)을 포함하므로 `sa-im-network-admin`의 Host 역할에 포함한다.
+- Foundation VM 실행 계정에는 Host Project 전체 `roles/compute.networkViewer` 대신 실제
+  GKE/Cloud Run 대상 Subnet의 `roles/compute.networkUser`만 부여한다.
+- `pjt-net-hub-base`에서 기존 프로젝트를 다루는 `sa-im-project-factory`에는
+  `roles/browser`, `roles/resourcemanager.projectIamAdmin`,
+  `roles/serviceusage.serviceUsageAdmin`을 부여한다.
+- IAM 프로필을 바꿀 때는 반드시 해당 프로필의 독립 Backend Prefix로
+  `terraform init -reconfigure`를 수행한다. 다른 프로필 State에서 Plan을 만들면
+  `count = 0`인 기존 Binding이 삭제될 수 있다.
+
+관리자 작업이 끝나면 일반 Foundation/Cloud Build 작업 전 다음을 실행해 관리자 토큰을
+제거한다.
+
+```bash
+unset GOOGLE_OAUTH_ACCESS_TOKEN
+gcloud config set account 40744085720-compute@developer.gserviceaccount.com
+```
