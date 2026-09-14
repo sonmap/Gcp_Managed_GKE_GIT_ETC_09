@@ -1,10 +1,13 @@
 locals {
   cloud_run_service_agent = "service-${var.cicd_project_number}@serverless-robot-prod.iam.gserviceaccount.com"
 
-  # Full cross-project/folder IAM requires two explicit gates. This prevents
-  # stale local tfvars that still contain iam_scope="full" from expanding the
-  # plan unless allow_full_scope is also intentionally enabled.
-  full_scope = var.iam_scope == "full" && var.allow_full_scope
+  # Global bootstrap gate. No IAM policy is read or changed until this is
+  # explicitly enabled by an account that already has IAM administration access.
+  iam_changes_enabled = var.enable_iam_changes
+
+  # Full cross-project/folder IAM requires three explicit gates. This prevents
+  # stale local tfvars from expanding the plan unintentionally.
+  full_scope = local.iam_changes_enabled && var.iam_scope == "full" && var.allow_full_scope
 
   project_factory_roles = toset([
     "roles/browser",
@@ -31,7 +34,7 @@ locals {
 }
 
 # Cloud Run Direct VPC egress IAM. Disabled unless full scope is explicitly
-# unlocked, even if stale local tfvars set manage_cloud_run_shared_vpc_iam=true.
+# unlocked by an IAM administrator.
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
   count = local.full_scope && var.manage_cloud_run_shared_vpc_iam ? 1 : 0
 
@@ -59,10 +62,10 @@ resource "google_project_iam_member" "project_factory_existing_project_roles" {
   member  = "serviceAccount:${var.project_factory_service_account}"
 }
 
-# Current approved scope: Shared VPC host project roles for the network admin SA.
-# Security Admin supplies compute.firewalls.create for the GKE/ALB health-check rule.
+# Shared VPC host roles for the network admin SA. These are also protected by
+# the global gate because they require getIamPolicy/setIamPolicy on the host.
 resource "google_project_iam_member" "network_admin_host_roles" {
-  for_each = var.manage_network_admin_host_iam ? local.network_admin_host_roles : toset([])
+  for_each = local.iam_changes_enabled && var.manage_network_admin_host_iam ? local.network_admin_host_roles : toset([])
 
   project = var.shared_vpc_host_project_id
   role    = each.value
