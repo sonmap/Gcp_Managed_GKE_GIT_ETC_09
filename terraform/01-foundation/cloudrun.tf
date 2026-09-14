@@ -1,15 +1,17 @@
 
 locals {
-  cloudrun_subnet_name = element(reverse(split("/", var.cloudrun_subnet_self_link)), 0)
+  cloudrun_subnet_self_link = "projects/${var.shared_vpc_host_project_id}/regions/${var.region}/subnetworks/${var.cloudrun_subnet_name}"
 }
 
 # In Shared VPC, Cloud Run's Google-managed service agent must be allowed to
 # attach its Direct VPC Egress interface to the host-project subnet.
 resource "google_compute_subnetwork_iam_member" "cloud_run_service_agent_network_user" {
+  count = var.enable_cloud_run_shared_vpc_iam ? 1 : 0
+
   provider   = google.host
   project    = var.shared_vpc_host_project_id
   region     = var.region
-  subnetwork = local.cloudrun_subnet_name
+  subnetwork = var.cloudrun_subnet_name
   role       = "roles/compute.networkUser"
   member     = "serviceAccount:service-${data.google_project.cicd.number}@serverless-robot-prod.iam.gserviceaccount.com"
 
@@ -72,7 +74,7 @@ resource "google_cloud_run_v2_service" "provisioner" {
     vpc_access {
       network_interfaces {
         network    = var.shared_vpc_network_self_link
-        subnetwork = var.cloudrun_subnet_self_link
+        subnetwork = local.cloudrun_subnet_self_link
         tags       = ["cloud-run-sandbox-provisioner"]
       }
       egress = "PRIVATE_RANGES_ONLY"
