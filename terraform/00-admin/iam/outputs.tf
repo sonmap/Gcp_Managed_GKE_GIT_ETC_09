@@ -41,7 +41,10 @@ output "foundation_executor_bootstrap" {
       "roles/compute.networkUser on ${var.gke_main_subnet_name}",
       "roles/compute.networkUser on ${var.gke_test_subnet_name}",
     ]
-    gke_project = "roles/container.admin"
+    gke_project = [
+      "roles/container.admin for ${var.foundation_executor_service_account}",
+      "roles/container.admin for ${var.gke_admin_service_account}",
+    ]
     cicd_project = [
       "roles/config.viewer",
       "roles/container.admin",
