@@ -38,6 +38,14 @@ resource "google_container_cluster" "sandbox" {
     }
   }
 
+  # Cloud Build Private Pool reaches the API through the GKE DNS endpoint.
+  # IAM remains required; this setting only allows traffic to that endpoint.
+  control_plane_endpoints_config {
+    dns_endpoint_config {
+      allow_external_traffic = var.gke_dns_endpoint_allow_external_traffic
+    }
+  }
+
   workload_identity_config {
     workload_pool = "${var.gke_project_id}.svc.id.goog"
   }
