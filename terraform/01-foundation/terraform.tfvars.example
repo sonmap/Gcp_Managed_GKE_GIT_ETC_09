@@ -21,6 +21,7 @@ cicd_test_gke_cluster_name  = "gke-dev-cicd-01-an3"
 
 cloudrun_subnet_name              = "subnet-dev-cicd-run-01-an3-egress"
 cloudbuild_private_pool_ip_range = "10.250.0.0/24"
+admin_access_cidr              = "172.31.10.0/24"
 
 # Privileged cross-project/GKE operations are disabled for the normal executor.
 enable_cloud_run_service_changes = true
