@@ -261,6 +261,17 @@ Runner는 다음 내부 이미지로 Helm 값을 고정한다.
 GKE Autopilot 노드의 Compute Engine 기본 서비스 계정에는 이 Artifact Registry
 저장소의 `roles/artifactregistry.reader`만 부여한다.
 
+### JupyterHub HTTPS Load Balancer와 DNS
+
+GKE 배포가 완료되어도 `proxy-public` Service는 `ClusterIP`이다. GKE가 만든
+standalone NEG를 확인한 뒤에만 Runner가 `60-loadbalancer` Infrastructure Manager
+Deployment를 적용해 External HTTPS Load Balancer와 고정 Global IP를 생성한다.
+
+Load Balancer Revision이 `APPLIED`가 된 뒤, DNS 관리자는
+`jupyter-sbx01.sonmap.net`의 Public A 레코드를 출력된 Global IP로 등록해야 한다.
+등록 전에는 `DNS_PROBE_FINISHED_NXDOMAIN`이 정상이며, Google-managed 인증서도
+`ACTIVE`가 될 수 없다.
+
 ### 비용중지 및 재시작
 
 전면 `terraform destroy`는 State Bucket, IAM, Artifact Registry까지 제거할 수 있으므로 금지한다.
