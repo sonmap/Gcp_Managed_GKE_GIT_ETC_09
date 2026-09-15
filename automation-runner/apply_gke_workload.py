@@ -211,6 +211,11 @@ def main():
             "hook": {"enabled": False},
             "continuous": {"enabled": False},
         },
+        # GKE Autopilot rejects the chart's custom scheduler. Kubernetes'
+        # default scheduler is used when this component is disabled.
+        "scheduling": {
+            "userScheduler": {"enabled": False},
+        },
         "cull": {"enabled": True, "timeout": 3600},
     }
     values_file = Path("/workspace/jupyter-values.json")
