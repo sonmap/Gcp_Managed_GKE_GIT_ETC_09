@@ -98,6 +98,16 @@ resource "google_project_iam_member" "foundation_executor_gke_admin" {
   member  = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
+# The nested GKE workload build impersonates this dedicated service account.
+# It needs project-level GKE administration on the Main GKE project.
+resource "google_project_iam_member" "gke_admin_gke_project_admin" {
+  count = local.full_scope && var.manage_gke_admin_gke_project_iam ? 1 : 0
+
+  project = var.gke_project_id
+  role    = "roles/container.admin"
+  member  = "serviceAccount:${var.gke_admin_service_account}"
+}
+
 resource "google_project_iam_member" "foundation_executor_cicd_gke_admin" {
   count = local.full_scope && var.manage_foundation_executor_cicd_iam ? 1 : 0
 
