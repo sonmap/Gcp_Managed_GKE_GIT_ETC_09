@@ -52,7 +52,11 @@ def main():
         f"--location={gke['location']}",
         impersonate,
     ]
-    endpoint = gcloud(*describe, "--format=value(endpoint)")
+    # Private Pool has no internet egress. Prefer the GKE private control-plane
+    # endpoint, which is reachable through the Shared VPC peering range.
+    endpoint = gcloud(*describe, "--format=value(privateEndpoint)")
+    if not endpoint:
+        endpoint = gcloud(*describe, "--format=value(endpoint)")
     ca_data = gcloud(*describe, "--format=value(masterAuth.clusterCaCertificate)")
     token = gcloud("auth", "print-access-token", impersonate)
 
