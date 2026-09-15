@@ -90,7 +90,6 @@ terraform apply admin-iam.tfplan
 
 이 Root는 프로젝트, Network, Subnet, NAT 자체를 생성하거나 삭제하지 않습니다. IAM Binding만 선택적으로 관리합니다.
 
-
 ## 기존 IAM State 403 자동 정리
 
 `enable_iam_changes = false`인데도 Plan의 Refresh 단계에서 403이 발생하면, 과거 IAM Resource가 State에 남아 있는 상태입니다. 저장소의 정리 스크립트를 사용합니다.
@@ -111,7 +110,6 @@ terraform show -no-color admin-iam.tfplan
 
 스크립트는 실제 GCP IAM Binding을 삭제하지 않고 해당 주소를 Terraform State에서만 제거합니다. 실행 전에 현재 State를 `admin-iam-state-backup-<UTC시각>.json`으로 저장합니다.
 
-
 ## Foundation 완료를 위한 관리자 Bootstrap
 
 Foundation 실행 계정의 GKE 및 Shared VPC 권한은 Git에서 관리하는 `foundation-bootstrap.admin.tfvars`로 적용합니다. 로컬 변수 파일을 수정하지 않습니다.
@@ -129,6 +127,29 @@ terraform apply foundation-bootstrap.tfplan
 
 적용 범위는 Foundation 실행 계정의 GKE 관리 권한, 두 GKE Subnet의 Network User, Cloud Run 서비스 에이전트의 Cloud Run Subnet Network User입니다. Host Project 단위 Network Viewer는 사용하지 않습니다. Folder XPN, Project Factory, Workflow 교차 프로젝트 권한은 이 프로필에서 비활성화됩니다.
 
+### Main GKE 프로젝트 LB 관리자 Bootstrap
+
+Sandbox JupyterHub의 Load Balancer는 Infrastructure Manager가 `sa-im-lb-admin`으로 `pjt-d-host01`에 생성합니다. `foundation-gke-project.admin.tfvars`는 다음 역할을 함께 부여합니다.
+
+- `roles/compute.loadBalancerAdmin`
+- `roles/compute.securityAdmin`
+
+첫 번째 역할은 Global Address, Health Check, SSL Certificate, Backend Service, URL Map, HTTPS Proxy, Forwarding Rule을 생성하는 데 사용하고, 두 번째 역할은 Cloud Armor Security Policy 생성에 사용합니다.
+
+이 프로필은 반드시 GKE 프로젝트 전용 Backend Prefix로 적용합니다.
+
+```bash
+terraform init -reconfigure \
+  -backend-config="bucket=tfstate-sbx-cicd-236d-40744085720" \
+  -backend-config="prefix=admin/foundation-gke-project-iam"
+
+terraform plan -input=false \
+  -var-file=foundation-gke-project.admin.tfvars \
+  -out=foundation-gke-project.tfplan
+
+terraform show -no-color foundation-gke-project.tfplan
+terraform apply foundation-gke-project.tfplan
+```
 
 ## 관리영역별 독립 State
 
@@ -142,7 +163,6 @@ terraform apply foundation-bootstrap.tfplan
 
 각 영역은 해당 프로젝트 IAM 관리자가 별도로 실행합니다. 서로 다른 관리영역을 하나의 State에 다시 합치지 않습니다.
 
-
 ## 관리자 프로필 사전검사
 
 Terraform Plan/Apply 전에 대상 프로젝트 IAM Policy 조회 가능 여부를 검사합니다.
@@ -155,7 +175,6 @@ bash preflight-admin-profile.sh shared-vpc
 
 `BLOCKED`가 표시되면 해당 로그인 계정으로 Terraform을 실행하지 않습니다. 조회 검사가 성공하더라도 실제 적용 전 `resourcemanager.projects.setIamPolicy` 보유 여부를 관리자에게 확인해야 합니다.
 
-
 ## Subnet 최소 권한 원칙
 
 Shared VPC Host Project의 프로젝트 IAM 변경 권한이 없는 운영 경계를 반영하여 다음 두 프로젝트 단위 Binding은 생성하지 않습니다.
@@ -165,13 +184,14 @@ Shared VPC Host Project의 프로젝트 IAM 변경 권한이 없는 운영 경�
 
 대신 각 대상 Subnet의 `roles/compute.networkUser`만 관리합니다. 이 역할은 Cloud Run Direct VPC와 GKE Shared VPC의 Subnet 사용에 필요한 조회·사용 권한을 제공합니다.
 
-
 ## 확인된 IAM 제약과 적용 규칙
 
 - `roles/compute.xpnAdmin`은 Project IAM에 지원되지 않는다. 반드시 Shared VPC 관리
   Folder `154455658682`의 `google_folder_iam_member`로만 적용한다.
 - `roles/compute.securityAdmin`은 Host Project Firewall 생성 권한
   (`compute.firewalls.create`)을 포함하므로 `sa-im-network-admin`의 Host 역할에 포함한다.
+- `sa-im-lb-admin`은 `pjt-d-host01`에서 `roles/compute.loadBalancerAdmin`과
+  `roles/compute.securityAdmin`을 함께 사용한다.
 - Foundation VM 실행 계정에는 Host Project 전체 `roles/compute.networkViewer` 대신 실제
   GKE/Cloud Run 대상 Subnet의 `roles/compute.networkUser`만 부여한다.
 - `pjt-net-hub-base`에서 기존 프로젝트를 다루는 `sa-im-project-factory`에는
