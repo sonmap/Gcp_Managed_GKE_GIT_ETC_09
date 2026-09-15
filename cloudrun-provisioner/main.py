@@ -180,6 +180,7 @@ def write_static_data_imports(work: Path, payload: dict) -> None:
     project_id = payload["project"]["project_id"]
     task_name = payload["task"]["name"]
     dataset_id = payload["data"]["bigquery_dataset"]
+    bucket_name = payload["data"]["gcs_bucket"]
     service_account = (
         f"projects/{project_id}/serviceAccounts/"
         f"gsa-jupyter-{task_name}@{project_id}.iam.gserviceaccount.com"
@@ -192,6 +193,10 @@ def write_static_data_imports(work: Path, payload: dict) -> None:
         "import {\n"
         "  to = google_bigquery_dataset.sandbox\n"
         f"  id = {json.dumps(f'{project_id}:{dataset_id}')}\n"
+        "}\n\n"
+        "import {\n"
+        "  to = google_storage_bucket.sandbox\n"
+        f"  id = {json.dumps(bucket_name)}\n"
         "}\n"
     )
     (work / "imports.tf").write_text(imports, encoding="utf-8")
