@@ -19,8 +19,9 @@ gke_test_pod_range_name     = "pods-dev-cicd-gke-01-an3-test"
 gke_test_pod_cidr           = "10.240.32.0/22"
 gke_test_control_plane_cidr = "10.253.0.16/28"
 
-cloudrun_subnet_name             = "subnet-dev-cicd-run-01-an3-egress"
-cloudbuild_private_pool_ip_range = "10.250.0.0/24"
+cloudrun_subnet_name                    = "subnet-dev-cicd-run-01-an3-egress"
+cloudbuild_private_pool_ip_range        = "10.250.0.0/24"
+gke_dns_endpoint_allow_external_traffic = true
 
 enable_cloud_run_service_changes = true
 enable_cloud_run_shared_vpc_iam  = false
