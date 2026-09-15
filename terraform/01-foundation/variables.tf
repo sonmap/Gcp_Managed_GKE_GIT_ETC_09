@@ -121,6 +121,12 @@ variable "cloudbuild_private_pool_ip_range" {
   default = "10.250.0.0/24"
 }
 
+variable "admin_access_cidr" {
+  description = "Shared VPC subnet CIDR allowed to access the Main GKE private control-plane endpoint."
+  type        = string
+  default     = "172.31.10.0/24"
+}
+
 variable "gke_cluster_name" {
   type    = string
   default = "gke-sbx-main-an3"
