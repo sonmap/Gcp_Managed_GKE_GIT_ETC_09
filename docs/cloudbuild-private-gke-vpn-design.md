@@ -11,7 +11,23 @@ Cloud Build Pool과 GKE control plane은 모두 Google 관리 네트워크에서
 
 이 설계는 Google의 Cloud VPN 기반 권장 토폴로지를 따른다.
 
-## 목표 토폴로지
+
+> **현재 환경 적용 상태:** 이 설계는 Host Project에서 VPC 생성과 HA VPN/Cloud Router 권한이 있는 경우에만 적용한다. 현재 권한에는 해당 권한이 없으므로 적용 대상으로 사용하지 않는다. 현재 PoC는 아래 **DNS 기반 GKE 엔드포인트 대안**을 우선 검증한다.
+
+## DNS 기반 GKE 엔드포인트 대안 (현재 환경)
+
+별도 VPC와 VPN을 만들 수 없는 환경에서는 Cloud Build Private Pool이 Google API를 통해
+GKE의 DNS 기반 엔드포인트를 사용하도록 한다. 이 경로는 Private Endpoint IP
+`10.253.0.2`에 대한 직접 라우팅을 요구하지 않는다.
+
+`automation-runner/apply_gke_workload.py`는 IP를 kubeconfig에 직접 넣는 대신
+`gcloud container clusters get-credentials --dns-endpoint` 방식으로 전환하고,
+전용 Private Pool Build에서 `kubectl get nodes`를 먼저 검증한다.
+
+- 성공: 기존 Shared VPC와 Private Pool을 유지하고 Workflow를 재실행한다.
+- 실패: 네트워크 자원 생성 없이 해결할 수 없으므로 관리자에게 VPC/VPN 권한 또는 별도 실행 환경을 요청한다.
+
+## HA VPN/BGP 토폴로지 (권한 보유 환경 전용)
 
 ```mermaid
 flowchart TB
