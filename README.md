@@ -8,6 +8,8 @@ Git에 포함된 파일별 역할은 [파일 카탈로그](docs/file-catalog.md)
 
 실제 실행은 [1차 VM Foundation / 2차 GCS JSON Cloud Run 실행 문서](docs/runbook-two-stage.md)를 따릅니다.
 
+Private Pool에서 GKE Private Endpoint로 배포하는 정식 HA VPN/BGP 토폴로지는 [Cloud Build Private Pool–Private GKE VPN 설계](docs/cloudbuild-private-gke-vpn-design.md)를 따릅니다.
+
 ## 실행 원칙
 
 1. 승인과 값 확정은 포털에서 끝납니다.
