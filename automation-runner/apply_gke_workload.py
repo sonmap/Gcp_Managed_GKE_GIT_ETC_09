@@ -73,6 +73,21 @@ def main():
         "--secret=jupyter-oauth-client-secret", f"--project={project}"
     )
 
+    # Authenticate and confirm that the pinned OCI chart exists before
+    # changing Kubernetes resources.
+    registry = f"{region}-docker.pkg.dev"
+    access_token = gcloud("auth", "print-access-token")
+    run(
+        ["helm", "registry", "login", registry, "--username", "oauth2accesstoken",
+         "--password-stdin"],
+        input_text=access_token,
+        env=child_env,
+    )
+    run([
+        "helm", "show", "chart", os.environ["JUPYTER_CHART_URI"],
+        f"--version={os.environ['JUPYTER_CHART_VERSION']}",
+    ], env=child_env)
+
     namespace = gke["namespace"]
     ksa = f"ksa-jupyter-{task}"
     jupyter_gsa = (
@@ -194,14 +209,6 @@ def main():
     values_file = Path("/workspace/jupyter-values.json")
     values_file.write_text(json.dumps(values, indent=2), encoding="utf-8")
 
-    registry = f"{region}-docker.pkg.dev"
-    access_token = gcloud("auth", "print-access-token")
-    run(
-        ["helm", "registry", "login", registry, "--username", "oauth2accesstoken",
-         "--password-stdin"],
-        input_text=access_token,
-        env=child_env,
-    )
     run([
         "helm", "upgrade", "--install", f"jupyterhub-{task}",
         os.environ["JUPYTER_CHART_URI"],
