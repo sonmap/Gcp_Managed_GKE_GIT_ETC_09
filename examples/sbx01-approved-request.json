@@ -1,10 +1,10 @@
 {
   "schema_version": "1.0",
-  "request_id": "REQ-20260915-005",
+  "request_id": "REQ-20260915-006",
   "approval": {
     "status": "APPROVED",
-    "approval_id": "APR-20260915-005",
-    "approved_at": "2026-09-15T11:30:00+09:00"
+    "approval_id": "APR-20260915-006",
+    "approved_at": "2026-09-15T12:00:00+09:00"
   },
   "action": "CREATE",
   "task": {
