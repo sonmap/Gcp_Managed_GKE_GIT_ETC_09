@@ -1,0 +1,28 @@
+steps:
+  - name: "${_AUTOMATION_IMAGE}"
+    id: mirror-jupyterhub-chart
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        REGISTRY="${_REGION}-docker.pkg.dev"
+        TARGET="oci://${REGISTRY}/${PROJECT_ID}/${_REPOSITORY}"
+
+        gcloud auth print-access-token |
+          helm registry login "${REGISTRY}"             --username oauth2accesstoken             --password-stdin
+
+        helm repo add jupyterhub https://hub.jupyter.org/helm-chart/
+        helm repo update
+        helm pull jupyterhub/jupyterhub           --version "${_CHART_VERSION}"           --destination /workspace
+        helm push "/workspace/jupyterhub-${_CHART_VERSION}.tgz" "${TARGET}"
+
+substitutions:
+  _REGION: asia-northeast3
+  _REPOSITORY: ar-sandbox-platform
+  _CHART_VERSION: "4.2.0"
+  _AUTOMATION_IMAGE: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/sandbox-automation-runner:latest
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 900s
