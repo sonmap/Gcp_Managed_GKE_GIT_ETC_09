@@ -204,6 +204,13 @@ def main():
                 "dynamic": {"storageClass": "standard-rwo"},
             },
         },
+        # The image pre-puller hook does not declare limits compatible with
+        # the sandbox ResourceQuota. Disable it for this constrained PoC;
+        # the first user server can pull its image on demand instead.
+        "prePuller": {
+            "hook": {"enabled": False},
+            "continuous": {"enabled": False},
+        },
         "cull": {"enabled": True, "timeout": 3600},
     }
     values_file = Path("/workspace/jupyter-values.json")
