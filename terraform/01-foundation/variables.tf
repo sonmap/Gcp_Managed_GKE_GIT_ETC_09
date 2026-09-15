@@ -127,6 +127,12 @@ variable "admin_access_cidr" {
   default     = "172.31.10.0/24"
 }
 
+variable "gke_dns_endpoint_allow_external_traffic" {
+  description = "Allow IAM-authenticated Cloud Build workers to reach the GKE DNS endpoint without direct Private Endpoint routing."
+  type        = bool
+  default     = false
+}
+
 variable "gke_cluster_name" {
   type    = string
   default = "gke-sbx-main-an3"
