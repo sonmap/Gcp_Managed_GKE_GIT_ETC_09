@@ -5,16 +5,11 @@ steps:
     args:
       - -ceu
       - |
-        REGISTRY="${_REGION}-docker.pkg.dev"
-        TARGET="oci://${REGISTRY}/${PROJECT_ID}/${_REPOSITORY}"
-
-        gcloud auth print-access-token |
-          helm registry login "${REGISTRY}"             --username oauth2accesstoken             --password-stdin
-
+        gcloud auth print-access-token | helm registry login "${_REGION}-docker.pkg.dev" --username oauth2accesstoken --password-stdin
         helm repo add jupyterhub https://hub.jupyter.org/helm-chart/
         helm repo update
-        helm pull jupyterhub/jupyterhub           --version "${_CHART_VERSION}"           --destination /workspace
-        helm push "/workspace/jupyterhub-${_CHART_VERSION}.tgz" "${TARGET}"
+        helm pull jupyterhub/jupyterhub --version "${_CHART_VERSION}" --destination /workspace
+        helm push "/workspace/jupyterhub-${_CHART_VERSION}.tgz" "oci://${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}"
 
 substitutions:
   _REGION: asia-northeast3
