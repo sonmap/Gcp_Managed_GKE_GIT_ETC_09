@@ -6,7 +6,7 @@ COPY requirements.txt /tmp/requirements.txt
 COPY apply_gke_workload.py /opt/sandbox/apply_gke_workload.py
 
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl kubectl python3-pip \
+    && apt-get install -y --no-install-recommends ca-certificates curl kubectl python3-pip google-cloud-cli-gke-gcloud-auth-plugin \
     && pip3 install --no-cache-dir --break-system-packages -r /tmp/requirements.txt \
     && curl -fsSLo /tmp/helm.tar.gz "https://get.helm.sh/helm-${HELM_VERSION}-linux-amd64.tar.gz" \
     && tar -xzf /tmp/helm.tar.gz -C /tmp \
