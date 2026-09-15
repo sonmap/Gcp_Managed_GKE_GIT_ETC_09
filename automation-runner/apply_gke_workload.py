@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
+import time
+import zipfile
 from pathlib import Path
 
 
@@ -260,6 +264,78 @@ def main():
         f"--values={values_file}",
         "--atomic", "--wait", "--timeout=15m",
     ], env=child_env)
+
+    # GKE creates the standalone NEG asynchronously. Wait for its Service
+    # annotation, then build a request-specific LB ZIP with the actual zonal
+    # NEG links and apply the final Infrastructure Manager deployment.
+    neg_status = None
+    for _ in range(30):
+        service = json.loads(run([
+            "kubectl", "get", "service", "proxy-public",
+            f"--namespace={namespace}", "--output=json",
+        ], env=child_env))
+        raw_status = service.get("metadata", {}).get("annotations", {}).get(
+            "cloud.google.com/neg-status"
+        )
+        if raw_status:
+            neg_status = json.loads(raw_status)
+            break
+        time.sleep(10)
+
+    if not neg_status:
+        raise RuntimeError("GKE did not publish a NEG status for proxy-public within 5 minutes")
+
+    neg_name = neg_status.get("network_endpoint_groups", {}).get("80")
+    zones = neg_status.get("zones", [])
+    if not neg_name or not zones:
+        raise RuntimeError(f"Invalid GKE NEG status: {neg_status}")
+
+    neg_self_links = [
+        f"projects/{gke['project_id']}/zones/{zone}/networkEndpointGroups/{neg_name}"
+        for zone in zones
+    ]
+
+    bundle_prefix = sys.argv[1].rsplit("/", 1)[0]
+    lb_template = f"{bundle_prefix}/loadbalancer-template.zip"
+    lb_bundle = f"{bundle_prefix}/loadbalancer-ready.zip"
+    orchestrator_env = dict(os.environ)
+
+    with tempfile.TemporaryDirectory() as temp_dir:
+        temp = Path(temp_dir)
+        template_path = temp / "loadbalancer-template.zip"
+        work = temp / "loadbalancer"
+        output_path = temp / "loadbalancer-ready.zip"
+        gcloud("storage", "cp", lb_template, str(template_path), env=orchestrator_env)
+        with zipfile.ZipFile(template_path) as archive:
+            archive.extractall(work)
+
+        variables_path = work / "terraform.auto.tfvars.json"
+        variables = json.loads(variables_path.read_text(encoding="utf-8"))
+        variables["neg_self_links"] = neg_self_links
+        variables_path.write_text(json.dumps(variables, indent=2, sort_keys=True), encoding="utf-8")
+
+        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(work.rglob("*")):
+                if path.is_file():
+                    archive.write(path, path.relative_to(work))
+        gcloud("storage", "cp", str(output_path), lb_bundle, env=orchestrator_env)
+
+    deployment_key = hashlib.sha256(
+        request["project"]["project_id"].encode("utf-8")
+    ).hexdigest()[:8]
+    lb_service_account = f"sa-im-lb-admin@{project}.iam.gserviceaccount.com"
+    gcloud(
+        "infra-manager", "deployments", "apply",
+        f"projects/{project}/locations/{region}/deployments/"
+        f"im-{task}-{deployment_key}-loadbalancer",
+        f"--service-account=projects/{project}/serviceAccounts/{lb_service_account}",
+        f"--gcs-source={lb_bundle}",
+        f"--worker-pool={os.environ['WORKER_POOL']}",
+        "--provider-source=SERVICE_MAINTAINED",
+        f"--annotations=request_id={request['request_id']},task={task}",
+        "--quiet",
+        env=orchestrator_env,
+    )
 
 
 if __name__ == "__main__":
