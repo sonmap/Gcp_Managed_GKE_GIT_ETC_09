@@ -17,9 +17,11 @@ resource "google_container_cluster" "sandbox" {
     cluster_secondary_range_name = var.gke_main_pod_range_name
   }
 
+  # Cloud Build private workers have no public internet path. Keep the
+  # Kubernetes API on the Shared VPC private control-plane endpoint.
   private_cluster_config {
     enable_private_nodes      = true
-    enable_private_endpoint   = false
+    enable_private_endpoint   = true
     master_ipv4_cidr_block    = var.gke_main_control_plane_cidr
   }
 
