@@ -61,6 +61,18 @@ def main():
         env=child_env,
     )
 
+    # Read all required runtime secrets before changing Kubernetes resources.
+    # This prevents a missing Secret Manager version from leaving a partially
+    # applied namespace, RBAC, or service account.
+    client_id = gcloud(
+        "secrets", "versions", "access", "latest",
+        "--secret=jupyter-oauth-client-id", f"--project={project}"
+    )
+    client_secret = gcloud(
+        "secrets", "versions", "access", "latest",
+        "--secret=jupyter-oauth-client-secret", f"--project={project}"
+    )
+
     namespace = gke["namespace"]
     ksa = f"ksa-jupyter-{task}"
     jupyter_gsa = (
@@ -141,14 +153,6 @@ def main():
     }
     run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(manifest), env=child_env)
 
-    client_id = gcloud(
-        "secrets", "versions", "access", "latest",
-        "--secret=jupyter-oauth-client-id", f"--project={project}"
-    )
-    client_secret = gcloud(
-        "secrets", "versions", "access", "latest",
-        "--secret=jupyter-oauth-client-secret", f"--project={project}"
-    )
     values = {
         "hub": {"config": {
             "JupyterHub": {"authenticator_class": "google"},
