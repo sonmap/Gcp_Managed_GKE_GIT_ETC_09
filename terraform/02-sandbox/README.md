@@ -25,9 +25,8 @@ Terraform import block의 ID는 Infrastructure Manager Terraform 1.5.7에서 Pla
 리터럴 ID를 가진 `imports.tf`를 생성한다. 따라서 import는 해당 요청의 Infrastructure
 Manager Revision State에만 기록되고 Git Root Module은 신규/기존 양쪽에 재사용 가능하다.
 
-현재 자동 채택 범위는 다음 두 자원이다.
+현재 자동 채택 범위는 다음 세 자원이다.
 
 - `gsa-jupyter-<task>@<project>.iam.gserviceaccount.com`
 - `<project>:<bigquery_dataset>`
-
-GCS Bucket은 실제 존재가 확인된 경우에만 별도 Git 변경으로 채택 대상으로 추가한다.
+- `<gcs_bucket>`
