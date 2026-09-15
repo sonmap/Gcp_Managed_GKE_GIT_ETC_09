@@ -22,6 +22,7 @@ resource "google_project_iam_member" "foundation_executor_bootstrap_roles" {
   for_each = toset([
     "roles/storage.admin",
     "roles/secretmanager.admin",
+    "roles/logging.viewer",
   ])
 
   project = var.cicd_project_id
