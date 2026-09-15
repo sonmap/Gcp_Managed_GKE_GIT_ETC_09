@@ -192,7 +192,7 @@ def write_static_data_imports(work: Path, payload: dict) -> None:
         "}\n\n"
         "import {\n"
         "  to = google_bigquery_dataset.sandbox\n"
-        f"  id = {json.dumps(f'{project_id}:{dataset_id}')}\n"
+        f"  id = {json.dumps(f'projects/{project_id}/datasets/{dataset_id}')}\n"
         "}\n\n"
         "import {\n"
         "  to = google_storage_bucket.sandbox\n"
