@@ -43,8 +43,6 @@ def main():
     project = os.environ["CICD_PROJECT_ID"]
     region = os.environ["GCP_REGION"]
     gke_admin = os.environ["GKE_ADMIN_SA"]
-    impersonate = f"--impersonate-service-account={gke_admin}"
-
     # Do not connect directly to the private control-plane IP. A Cloud Build
     # private pool and the GKE control plane use Google-managed networks, so
     # direct Private Endpoint routing requires a separate VPC/HA VPN topology.
