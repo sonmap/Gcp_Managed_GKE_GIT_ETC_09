@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import base64
 import json
 import os
 import subprocess
@@ -26,8 +25,8 @@ def run(args, *, input_text=None, env=None):
     return result.stdout.strip()
 
 
-def gcloud(*args):
-    return run(["gcloud", *args])
+def gcloud(*args, env=None):
+    return run(["gcloud", *args], env=env)
 
 
 def main():
@@ -46,40 +45,23 @@ def main():
     gke_admin = os.environ["GKE_ADMIN_SA"]
     impersonate = f"--impersonate-service-account={gke_admin}"
 
-    describe = [
-        "container", "clusters", "describe", gke["cluster_name"],
+    # Do not connect directly to the private control-plane IP. A Cloud Build
+    # private pool and the GKE control plane use Google-managed networks, so
+    # direct Private Endpoint routing requires a separate VPC/HA VPN topology.
+    # The DNS endpoint uses the GKE API path and avoids that transit-peering
+    # dependency while retaining IAM authentication.
+    kubeconfig = Path("/workspace/kubeconfig")
+    child_env = dict(os.environ)
+    child_env["KUBECONFIG"] = str(kubeconfig)
+    child_env["CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT"] = gke_admin
+
+    gcloud(
+        "container", "clusters", "get-credentials", gke["cluster_name"],
         f"--project={gke['project_id']}",
         f"--location={gke['location']}",
-        impersonate,
-    ]
-    # Private Pool has no internet egress. Prefer the GKE private control-plane
-    # endpoint, which is reachable through the Shared VPC peering range.
-    endpoint = gcloud(*describe, "--format=value(privateEndpoint)")
-    if not endpoint:
-        endpoint = gcloud(*describe, "--format=value(endpoint)")
-    ca_data = gcloud(*describe, "--format=value(masterAuth.clusterCaCertificate)")
-    token = gcloud("auth", "print-access-token", impersonate)
-
-    ca_file = Path("/workspace/gke-ca.crt")
-    ca_file.write_bytes(base64.b64decode(ca_data))
-    kubeconfig = Path("/workspace/kubeconfig.json")
-    kubeconfig.write_text(json.dumps({
-        "apiVersion": "v1",
-        "kind": "Config",
-        "clusters": [{
-            "name": "sandbox",
-            "cluster": {
-                "server": f"https://{endpoint}",
-                "certificate-authority": str(ca_file),
-            },
-        }],
-        "contexts": [{
-            "name": "sandbox",
-            "context": {"cluster": "sandbox", "user": "gke-admin"},
-        }],
-        "current-context": "sandbox",
-        "users": [{"name": "gke-admin", "user": {"token": token}}],
-    }), encoding="utf-8")
+        "--dns-endpoint",
+        env=child_env,
+    )
 
     namespace = gke["namespace"]
     ksa = f"ksa-jupyter-{task}"
@@ -159,8 +141,6 @@ def main():
             },
         ],
     }
-    child_env = dict(os.environ)
-    child_env["KUBECONFIG"] = str(kubeconfig)
     run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(manifest), env=child_env)
 
     client_id = gcloud(
