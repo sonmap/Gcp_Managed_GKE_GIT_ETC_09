@@ -234,6 +234,33 @@ gcloud infra-manager deployments list --project=prj-b-cicd-local-236d \
   --format="table(name.basename(),state,latestRevision.basename())"
 ```
 
+### Private GKE JupyterHub 이미지 미러링
+
+Private GKE 노드에는 외부 인터넷 egress가 없으므로 JupyterHub의 Chart뿐 아니라
+Hub, configurable-http-proxy, single-user 컨테이너 이미지도 내부 Artifact Registry에서
+가져와야 한다. `quay.io` 직접 Pull은 `ImagePullBackOff`로 실패한다.
+
+Foundation이 최신 automation runner 이미지를 만든 뒤, 완전관리형 Cloud Build에서 한 번
+미러링한다. 이 Build는 의도적으로 Private Pool을 사용하지 않으며 외부 Quay 접근만
+수행한다.
+
+```bash
+cd ~/Gcp_Managed_GKE_GIT_ETC_09
+gcloud builds submit --no-source \
+  --config=cloudbuild/mirror-jupyterhub-images.yaml \
+  --project=prj-b-cicd-local-236d \
+  --region=asia-northeast3
+```
+
+Runner는 다음 내부 이미지로 Helm 값을 고정한다.
+
+- `jupyterhub-k8s-hub:4.2.0`
+- `jupyterhub-configurable-http-proxy:4.6.3`
+- `jupyterhub-k8s-singleuser-sample:4.2.0`
+
+GKE Autopilot 노드의 Compute Engine 기본 서비스 계정에는 이 Artifact Registry
+저장소의 `roles/artifactregistry.reader`만 부여한다.
+
 ### 비용중지 및 재시작
 
 전면 `terraform destroy`는 State Bucket, IAM, Artifact Registry까지 제거할 수 있으므로 금지한다.
