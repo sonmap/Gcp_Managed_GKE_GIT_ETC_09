@@ -169,31 +169,45 @@ def main():
     run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(manifest), env=child_env)
 
     values = {
-        "hub": {"config": {
-            "JupyterHub": {"authenticator_class": "google"},
-            "Authenticator": {
-                "allow_all": False,
-                "allowed_users": request["identity"]["members"],
+        "hub": {
+            "config": {
+                "JupyterHub": {"authenticator_class": "google"},
+                "Authenticator": {
+                    "allow_all": False,
+                    "allowed_users": request["identity"]["members"],
+                },
+                "GoogleOAuthenticator": {
+                    "client_id": client_id,
+                    "client_secret": client_secret,
+                    "oauth_callback_url": (
+                        f"https://{gke['jupyter_domain']}/hub/oauth_callback"
+                    ),
+                    "hosted_domain": ["sonmap.net"],
+                    "login_service": "Sonmap Google Account",
+                },
             },
-            "GoogleOAuthenticator": {
-                "client_id": client_id,
-                "client_secret": client_secret,
-                "oauth_callback_url": (
-                    f"https://{gke['jupyter_domain']}/hub/oauth_callback"
-                ),
-                "hosted_domain": ["sonmap.net"],
-                "login_service": "Sonmap Google Account",
+            "resources": {
+                "requests": {"cpu": "500m", "memory": "1Gi"},
+                "limits": {"cpu": "1", "memory": "2Gi"},
             },
-        }},
-        "proxy": {"service": {
-            "type": "ClusterIP",
-            "annotations": {
-                "cloud.google.com/neg": json.dumps(
-                    {"exposed_ports": {"80": {"name": f"neg-jupyter-{task}"}}},
-                    separators=(",", ":"),
-                )
+        },
+        "proxy": {
+            "chp": {
+                "resources": {
+                    "requests": {"cpu": "250m", "memory": "512Mi"},
+                    "limits": {"cpu": "500m", "memory": "1Gi"},
+                },
             },
-        }},
+            "service": {
+                "type": "ClusterIP",
+                "annotations": {
+                    "cloud.google.com/neg": json.dumps(
+                        {"exposed_ports": {"80": {"name": f"neg-jupyter-{task}"}}},
+                        separators=(",", ":"),
+                    )
+                },
+            },
+        },
         "singleuser": {
             "serviceAccountName": ksa,
             "cpu": {"guarantee": 1, "limit": 2},
