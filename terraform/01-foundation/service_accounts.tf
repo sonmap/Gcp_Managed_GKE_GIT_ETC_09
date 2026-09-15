@@ -39,10 +39,18 @@ resource "google_project_iam_member" "cicd_default_compute_log_writer" {
   member  = "serviceAccount:${data.google_project.cicd.number}-compute@developer.gserviceaccount.com"
 }
 
-# The VM execution identity creates the Cloud Build trigger during foundation.
+# The VM execution identity creates Cloud Builds and the Foundation trigger.
 resource "google_project_iam_member" "foundation_executor_cloud_build_editor" {
   project = var.cicd_project_id
   role    = "roles/cloudbuild.builds.editor"
+  member  = "serviceAccount:${var.foundation_executor_service_account}"
+}
+
+# The VM execution identity may submit approved recovery/troubleshooting builds
+# directly to the private Cloud Build worker pool.
+resource "google_project_iam_member" "foundation_executor_worker_pool_user" {
+  project = var.cicd_project_id
+  role    = "roles/cloudbuild.workerPoolUser"
   member  = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
