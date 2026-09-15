@@ -83,6 +83,12 @@ variable "gke_admin_service_account" {
   default     = "sa-im-gke-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
 }
 
+variable "lb_admin_service_account" {
+  description = "Dedicated identity used by Infrastructure Manager to create sandbox load balancers."
+  type        = string
+  default     = "sa-im-lb-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
 variable "enable_iam_changes" {
   description = "Global bootstrap gate. Keep false for normal execution. Set true only when the Terraform caller already has getIamPolicy/setIamPolicy on every enabled target."
   type        = bool
@@ -132,6 +138,12 @@ variable "manage_foundation_executor_shared_vpc_iam" {
 
 variable "manage_gke_admin_gke_project_iam" {
   description = "Grant the dedicated GKE workload service account container.admin in pjt-d-host01."
+  type        = bool
+  default     = false
+}
+
+variable "manage_lb_admin_gke_project_iam" {
+  description = "Grant load-balancer and Cloud Armor administration to sa-im-lb-admin in pjt-d-host01."
   type        = bool
   default     = false
 }
