@@ -20,6 +20,11 @@ locals {
     "roles/compute.securityAdmin",
   ])
 
+  lb_admin_gke_project_roles = toset([
+    "roles/compute.loadBalancerAdmin",
+    "roles/compute.securityAdmin",
+  ])
+
   workflow_gke_project_roles = toset([
     "roles/container.developer",
   ])
@@ -106,6 +111,17 @@ resource "google_project_iam_member" "gke_admin_gke_project_admin" {
   project = var.gke_project_id
   role    = "roles/container.admin"
   member  = "serviceAccount:${var.gke_admin_service_account}"
+}
+
+# The Infrastructure Manager load-balancer deployment runs as sa-im-lb-admin.
+# Load Balancer Admin covers global address, health check, SSL, backend, URL map,
+# proxy and forwarding-rule resources; Security Admin covers Cloud Armor policy.
+resource "google_project_iam_member" "lb_admin_gke_project_roles" {
+  for_each = local.full_scope && var.manage_lb_admin_gke_project_iam ? local.lb_admin_gke_project_roles : toset([])
+
+  project = var.gke_project_id
+  role    = each.value
+  member  = "serviceAccount:${var.lb_admin_service_account}"
 }
 
 resource "google_project_iam_member" "foundation_executor_cicd_gke_admin" {
