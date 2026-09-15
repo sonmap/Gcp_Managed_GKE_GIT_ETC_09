@@ -304,6 +304,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
                 f"GKE_ADMIN_SA=sa-im-gke-admin@{project}.iam.gserviceaccount.com",
                 f"JUPYTER_CHART_URI={os.environ['JUPYTER_CHART_URI']}",
                 f"JUPYTER_CHART_VERSION={os.environ['JUPYTER_CHART_VERSION']}",
+                f"WORKER_POOL={worker_pool}",
             ],
         }],
         "options": {
