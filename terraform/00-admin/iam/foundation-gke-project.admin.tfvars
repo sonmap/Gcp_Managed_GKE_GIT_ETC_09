@@ -9,6 +9,7 @@ manage_foundation_executor_iam                   = false
 manage_foundation_executor_cicd_iam              = false
 manage_foundation_executor_gke_project_iam       = true
 manage_foundation_executor_shared_vpc_iam        = false
+manage_gke_admin_gke_project_iam             = true
 manage_cloud_run_shared_vpc_iam                  = false
 manage_project_factory_existing_project_iam     = false
 manage_network_admin_host_iam                    = false
