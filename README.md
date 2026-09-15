@@ -176,9 +176,9 @@ Terraform 1.5.7은 import ID에서 변수를 지원하지 않는다.
 }
 ```
 
-현재 채택 대상은 기존 Jupyter GSA와 BigQuery Dataset이다. GCS Bucket의 존재 여부가
-확인되지 않은 상태에서는 Bucket import를 추가하지 않는다. 재실행에서 Bucket 409가
-발생할 때만 Git 소스에 Bucket 정적 import를 추가하고 새 release를 발행한다.
+현재 채택 대상은 기존 Jupyter GSA, BigQuery Dataset, GCS Bucket이다. 승인 JSON의
+`adopt_existing_resources`는 세 자원을 같은 Infrastructure Manager Revision State에
+채택한다.
 
 ### sbx01 재실행 절차
 
