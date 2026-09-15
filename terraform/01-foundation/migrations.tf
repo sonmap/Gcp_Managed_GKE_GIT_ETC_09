@@ -58,10 +58,6 @@ import {
 }
 
 
-# The first Autopilot creation reached the node-pool read phase before the
-# executor had compute.instanceGroupManagers.list. Adopt the cluster if the
-# provider could not persist it in state; this is a no-op when already managed.
-import {
-  to = google_container_cluster.cicd_test[0]
-  id = "projects/prj-b-cicd-local-236d/locations/asia-northeast3/clusters/gke-dev-cicd-01-an3"
-}
+# A one-time recovery import for google_container_cluster.cicd_test was removed.
+# The test cluster is intentionally recreated after a cost-stop, so a static
+# import would fail with 404 before Terraform can create it.
