@@ -25,6 +25,19 @@ resource "google_container_cluster" "sandbox" {
     master_ipv4_cidr_block    = var.gke_main_control_plane_cidr
   }
 
+  # GKE requires Master Authorized Networks when the private endpoint is enabled.
+  # Allow only the Private Pool PSA range and the IAP-admin VM subnet.
+  master_authorized_networks_config {
+    cidr_blocks {
+      cidr_block   = var.cloudbuild_private_pool_ip_range
+      display_name = "cloud-build-private-pool"
+    }
+    cidr_blocks {
+      cidr_block   = var.admin_access_cidr
+      display_name = "admin-vm-subnet"
+    }
+  }
+
   workload_identity_config {
     workload_pool = "${var.gke_project_id}.svc.id.goog"
   }
