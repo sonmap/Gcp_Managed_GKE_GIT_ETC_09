@@ -168,8 +168,17 @@ def main():
     }
     run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(manifest), env=child_env)
 
+    # Private GKE nodes in this PoC have no public egress. All JupyterHub
+    # runtime images must therefore be pulled from the internal Artifact
+    # Registry mirror, not from quay.io.
+    image_prefix = f"{region}-docker.pkg.dev/{project}/ar-sandbox-platform"
+
     values = {
         "hub": {
+            "image": {
+                "name": f"{image_prefix}/jupyterhub-k8s-hub",
+                "tag": os.environ["JUPYTER_CHART_VERSION"],
+            },
             "config": {
                 "JupyterHub": {"authenticator_class": "google"},
                 "Authenticator": {
@@ -193,6 +202,10 @@ def main():
         },
         "proxy": {
             "chp": {
+                "image": {
+                    "name": f"{image_prefix}/jupyterhub-configurable-http-proxy",
+                    "tag": "4.6.3",
+                },
                 "resources": {
                     "requests": {"cpu": "250m", "memory": "512Mi"},
                     "limits": {"cpu": "500m", "memory": "1Gi"},
@@ -209,6 +222,10 @@ def main():
             },
         },
         "singleuser": {
+            "image": {
+                "name": f"{image_prefix}/jupyterhub-k8s-singleuser-sample",
+                "tag": os.environ["JUPYTER_CHART_VERSION"],
+            },
             "serviceAccountName": ksa,
             "cpu": {"guarantee": 1, "limit": 2},
             "memory": {"guarantee": "8G", "limit": "16G"},
