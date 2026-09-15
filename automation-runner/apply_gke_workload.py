@@ -8,14 +8,22 @@ from pathlib import Path
 
 
 def run(args, *, input_text=None, env=None):
-    return subprocess.run(
+    result = subprocess.run(
         args,
         input=input_text,
         text=True,
-        check=True,
+        check=False,
         capture_output=True,
         env=env,
-    ).stdout.strip()
+    )
+    if result.returncode:
+        command = " ".join(args)
+        raise RuntimeError(
+            f"command failed ({result.returncode}): {command}\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}"
+        )
+    return result.stdout.strip()
 
 
 def gcloud(*args):
