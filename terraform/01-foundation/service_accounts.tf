@@ -33,10 +33,6 @@ resource "google_project_iam_member" "foundation_executor_bootstrap_roles" {
 # A nested build can use the Compute Engine default service account when a
 # caller does not specify a build service account. Give only log-write access
 # so Cloud Build can record its result in Cloud Logging.
-data "google_project" "cicd" {
-  project_id = var.cicd_project_id
-}
-
 resource "google_project_iam_member" "cicd_default_compute_log_writer" {
   project = var.cicd_project_id
   role    = "roles/logging.logWriter"
