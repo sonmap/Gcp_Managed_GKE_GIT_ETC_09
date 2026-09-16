@@ -215,14 +215,12 @@ def main():
                     "limits": {"cpu": "500m", "memory": "1Gi"},
                 },
             },
+            # Do not attach the standalone NEG during Helm --wait. If the NEG
+            # readiness gate is injected before the load balancer exists, the
+            # proxy Pod becomes NotReady and proxy-api has no Ready endpoint.
+            # That makes the Hub fail with HTTP 599 and Helm deadlocks.
             "service": {
                 "type": "ClusterIP",
-                "annotations": {
-                    "cloud.google.com/neg": json.dumps(
-                        {"exposed_ports": {"80": {"name": f"neg-jupyter-{task}"}}},
-                        separators=(",", ":"),
-                    )
-                },
             },
         },
         "singleuser": {
@@ -263,6 +261,20 @@ def main():
         f"--namespace={namespace}",
         f"--values={values_file}",
         "--atomic", "--wait", "--timeout=15m",
+    ], env=child_env)
+
+    # Helm must become healthy before the standalone NEG is attached. This
+    # avoids a circular dependency where NEG readiness blocks proxy-api,
+    # while the load balancer cannot be created until Helm has completed.
+    neg_annotation = json.dumps(
+        {"exposed_ports": {"80": {"name": f"neg-jupyter-{task}"}}},
+        separators=(",", ":"),
+    )
+    run([
+        "kubectl", "annotate", "service", "proxy-public",
+        f"--namespace={namespace}",
+        f"cloud.google.com/neg={neg_annotation}",
+        "--overwrite",
     ], env=child_env)
 
     # GKE creates the standalone NEG asynchronously. Wait for its Service
