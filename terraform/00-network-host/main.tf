@@ -13,6 +13,8 @@ resource "google_compute_subnetwork" "internal_alb_frontend" {
   private_ip_google_access = true
 }
 
+# Legacy host-project reservation retained for state compatibility. The actual
+# regional internal ALB frontend IP is allocated in the GKE service project.
 resource "google_compute_address" "jupyter_internal_alb" {
   project      = var.shared_vpc_host_project_id
   name         = var.jupyter_internal_alb_ip_name
@@ -20,6 +22,16 @@ resource "google_compute_address" "jupyter_internal_alb" {
   subnetwork   = google_compute_subnetwork.internal_alb_frontend.id
   address_type = "INTERNAL"
   address      = var.jupyter_internal_alb_ip
+}
+
+# sa-im-lb-admin creates the forwarding rule/IP in pjt-d-host01 but consumes
+# this Shared VPC frontend subnet from the host project.
+resource "google_compute_subnetwork_iam_member" "lb_admin_frontend_network_user" {
+  project    = var.shared_vpc_host_project_id
+  region     = var.region
+  subnetwork = google_compute_subnetwork.internal_alb_frontend.name
+  role       = "roles/compute.networkUser"
+  member     = "serviceAccount:${var.lb_admin_service_account_email}"
 }
 
 # Google-managed Envoy proxies for a regional internal Application Load Balancer.
@@ -126,6 +138,24 @@ resource "google_compute_firewall" "health_checks_to_main_pods" {
   network            = data.google_compute_network.shared.name
   direction          = "INGRESS"
   source_ranges      = ["35.191.0.0/16", "130.211.0.0/22"]
+  destination_ranges = [var.gke_main_pod_cidr]
+
+  allow {
+    protocol = "tcp"
+    ports    = ["8000"]
+  }
+}
+
+# Regional internal ALB data-plane traffic originates from the proxy-only
+# subnet and must reach the standalone NEG endpoints on the Jupyter proxy port.
+resource "google_compute_firewall" "internal_alb_proxy_to_main_pods" {
+  count = var.enable_firewall_changes && var.create_health_check_firewall ? 1 : 0
+
+  project            = var.shared_vpc_host_project_id
+  name               = "fw-dev-sbx-gke-allow-ilb-proxy"
+  network            = data.google_compute_network.shared.name
+  direction          = "INGRESS"
+  source_ranges      = [var.internal_alb_proxy_subnet_cidr]
   destination_ranges = [var.gke_main_pod_cidr]
 
   allow {
