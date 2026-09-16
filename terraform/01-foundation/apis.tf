@@ -8,7 +8,11 @@ locals {
     "admin.googleapis.com", "compute.googleapis.com",
     "container.googleapis.com", "workflows.googleapis.com"
   ])
-  gke_apis = toset(["container.googleapis.com", "compute.googleapis.com"])
+  gke_apis = toset([
+    "container.googleapis.com",
+    "compute.googleapis.com",
+    "certificatemanager.googleapis.com",
+  ])
 }
 
 resource "google_project_service" "cicd" {
