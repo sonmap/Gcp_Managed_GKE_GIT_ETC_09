@@ -161,6 +161,18 @@ resource "google_project_iam_member" "foundation_executor_cicd_config_viewer" {
   member  = "serviceAccount:${var.foundation_executor_service_account}"
 }
 
+# The regional Cloud Build created by gcloud builds submit runs as the CI/CD
+# project's default Compute service account. It must read the uploaded source
+# archive from the approved regional staging bucket. Keep this bucket-scoped
+# rather than granting Storage Viewer across the whole project.
+resource "google_storage_bucket_iam_member" "cloud_build_staging_source_reader" {
+  count = local.full_scope && var.manage_foundation_executor_cicd_iam ? 1 : 0
+
+  bucket = "${var.cicd_project_id}-sandbox-bundles"
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.cicd_project_number}-compute@developer.gserviceaccount.com"
+}
+
 # Cloud Run Direct VPC egress IAM. Disabled unless full scope is explicitly
 # unlocked by an IAM administrator.
 resource "google_compute_subnetwork_iam_member" "cloud_run_network_user" {
