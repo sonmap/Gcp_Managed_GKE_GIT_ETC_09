@@ -9,6 +9,11 @@ variable "jupyter_internal_alb_ip" { type = string }
 variable "internal_alb_proxy_subnet_name" { type = string }
 variable "internal_alb_proxy_subnet_cidr" { type = string }
 
+variable "lb_admin_service_account_email" {
+  type    = string
+  default = "sa-im-lb-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com"
+}
+
 variable "gke_main_subnet_name" { type = string }
 variable "gke_main_subnet_cidr" { type = string }
 variable "gke_main_pod_range_name" { type = string }
@@ -35,6 +40,6 @@ variable "enable_firewall_changes" {
 
 variable "create_health_check_firewall" {
   type        = bool
-  description = "Create the GKE L7 health-check firewall only when enable_firewall_changes is also true."
+  description = "Create the GKE L7 health-check and internal ALB proxy firewall rules only when enable_firewall_changes is also true."
   default     = false
 }
