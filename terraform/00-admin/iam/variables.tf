@@ -59,6 +59,12 @@ variable "gke_test_subnet_name" {
   default = "subnet-dev-cicd-gke-01-an3-test"
 }
 
+variable "lb_frontend_subnet_name" {
+  description = "Shared VPC frontend subnet used by the regional internal HTTPS load balancer."
+  type        = string
+  default     = "subnet-dev-sbx-ing-01-an3-ilb"
+}
+
 variable "workflow_service_account" {
   description = "Workflow runtime identity created in prj-b-cicd-local-236d."
   type        = string
@@ -144,6 +150,12 @@ variable "manage_gke_admin_gke_project_iam" {
 
 variable "manage_lb_admin_gke_project_iam" {
   description = "Grant load-balancer and Cloud Armor administration to sa-im-lb-admin in pjt-d-host01."
+  type        = bool
+  default     = false
+}
+
+variable "manage_lb_admin_shared_vpc_iam" {
+  description = "Grant sa-im-lb-admin Shared VPC read access and Network User on the internal ALB frontend subnet."
   type        = bool
   default     = false
 }
