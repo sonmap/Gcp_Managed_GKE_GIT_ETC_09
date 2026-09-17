@@ -196,6 +196,9 @@ def main():
                         f"https://{gke['jupyter_domain']}/hub/oauth_callback"
                     ),
                     "hosted_domain": ["sonmap.net"],
+                    # Keep the full email address as the JupyterHub username so
+                    # it matches allowed_users such as user01@sonmap.net.
+                    "strip_domain": False,
                     "login_service": "Sonmap Google Account",
                 },
             },
@@ -235,6 +238,14 @@ def main():
                 "type": "dynamic",
                 "capacity": "40Gi",
                 "dynamic": {"storageClass": "standard-rwo"},
+            },
+            # Autopilot rejects the chart's privileged block-cloud-metadata
+            # init container because it requires NET_ADMIN. Workload Identity
+            # requires access to the GKE metadata server instead.
+            "cloudMetadata": {"blockWithIptables": False},
+            "networkPolicy": {
+                "enabled": True,
+                "egressAllowRules": {"cloudMetadataServer": True},
             },
         },
         # The image pre-puller hook does not declare limits compatible with
