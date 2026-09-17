@@ -15,7 +15,9 @@ resource "google_compute_health_check" "jupyter" {
 
   http_health_check {
     port_specification = "USE_SERVING_PORT"
-    request_path       = "/hub/health"
+    # proxy-public terminates on configurable-http-proxy. Its native health
+    # endpoint is /_chp_healthz; /hub/health is not the backend health target.
+    request_path = "/_chp_healthz"
   }
 }
 
