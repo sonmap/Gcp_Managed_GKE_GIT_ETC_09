@@ -13,6 +13,14 @@ variable "alb_name" {
   default = "alb-jupyter-shared"
 }
 
+# The certificate content/private key is intentionally not stored in Git.
+# Create or rotate the self-managed certificate out-of-band, then reference it
+# here by Compute SSL certificate resource name.
+variable "ssl_certificate_name" {
+  type    = string
+  default = "cert-jupyter-sbx01-self"
+}
+
 # Central route registry for the one shared External ALB.
 # Each sandbox creates its own global EXTERNAL backend service separately;
 # this Foundation state is the only state allowed to update the shared URL map.
