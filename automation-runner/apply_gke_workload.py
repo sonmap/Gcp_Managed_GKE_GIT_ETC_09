@@ -280,25 +280,57 @@ def main():
         "--overwrite",
     ], env=child_env)
 
-    # GKE creates the standalone NEG asynchronously. Wait for its Service
-    # annotation, then build a request-specific LB ZIP with the actual zonal
-    # NEG links and apply the final Infrastructure Manager deployment.
+    # GKE creates the standalone NEG asynchronously. The Service can retain a
+    # stale cloud.google.com/neg-status annotation briefly after its NEG spec
+    # changes, so do not trust the annotation merely because it exists. Wait
+    # until the ServiceNetworkEndpointGroup for proxy-public:80 reports
+    # Synced=True, then read the current NEG status and build the LB bundle.
     neg_status = None
     for _ in range(30):
-        service = json.loads(run([
-            "kubectl", "get", "service", "proxy-public",
+        svcnegs = json.loads(run([
+            "kubectl", "get", "svcneg",
             f"--namespace={namespace}", "--output=json",
         ], env=child_env))
-        raw_status = service.get("metadata", {}).get("annotations", {}).get(
-            "cloud.google.com/neg-status"
-        )
-        if raw_status:
-            neg_status = json.loads(raw_status)
-            break
+
+        synced = False
+        for item in svcnegs.get("items", []):
+            labels = item.get("metadata", {}).get("labels", {})
+            if (
+                labels.get("networking.gke.io/service-name") != "proxy-public"
+                or labels.get("networking.gke.io/service-port") != "80"
+            ):
+                continue
+            conditions = item.get("status", {}).get("conditions", [])
+            if any(
+                condition.get("type") == "Synced"
+                and condition.get("status") == "True"
+                for condition in conditions
+            ):
+                synced = True
+                break
+
+        if synced:
+            service = json.loads(run([
+                "kubectl", "get", "service", "proxy-public",
+                f"--namespace={namespace}", "--output=json",
+            ], env=child_env))
+            raw_status = service.get("metadata", {}).get("annotations", {}).get(
+                "cloud.google.com/neg-status"
+            )
+            if raw_status:
+                candidate = json.loads(raw_status)
+                neg_name = candidate.get("network_endpoint_groups", {}).get("80")
+                zones = candidate.get("zones", [])
+                if neg_name and zones:
+                    neg_status = candidate
+                    break
         time.sleep(10)
 
     if not neg_status:
-        raise RuntimeError("GKE did not publish a NEG status for proxy-public within 5 minutes")
+        raise RuntimeError(
+            "GKE NEG for proxy-public did not reach Synced=True with a valid "
+            "NEG status within 5 minutes"
+        )
 
     neg_name = neg_status.get("network_endpoint_groups", {}).get("80")
     zones = neg_status.get("zones", [])
