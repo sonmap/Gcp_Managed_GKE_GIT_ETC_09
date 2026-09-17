@@ -1,22 +1,33 @@
 resource "google_compute_global_address" "jupyter" {
-  project = var.gke_project_id
-  name    = "ip-${var.alb_name}"
+  project      = var.gke_project_id
+  name         = "ip-${var.alb_name}"
+  address_type = "EXTERNAL"
 }
 
-# Placeholder backend keeps the shared ALB independently deployable before
-# any sandbox namespace/NEG exists. It intentionally has no backends yet.
-resource "google_compute_backend_service" "default" {
-  project               = var.gke_project_id
-  name                  = "bes-${var.alb_name}-default"
-  protocol              = "HTTP"
-  load_balancing_scheme = "EXTERNAL"
-  timeout_sec           = 30
+# Foundation must be deployable before any sandbox namespace/NEG exists.
+# Use a private placeholder backend bucket as the URL-map default target.
+# Sandbox host rules will later route jupyter-sbxXX domains to NEG backend services.
+resource "google_storage_bucket" "placeholder" {
+  project                     = var.gke_project_id
+  name                        = "${var.gke_project_id}-${var.alb_name}-placeholder"
+  location                    = "ASIA-NORTHEAST3"
+  uniform_bucket_level_access = true
+  force_destroy               = true
+
+  public_access_prevention = "enforced"
+}
+
+resource "google_compute_backend_bucket" "placeholder" {
+  project     = var.gke_project_id
+  name        = "bb-${var.alb_name}-placeholder"
+  bucket_name = google_storage_bucket.placeholder.name
+  enable_cdn  = false
 }
 
 resource "google_compute_url_map" "jupyter" {
   project         = var.gke_project_id
   name            = "urlmap-${var.alb_name}"
-  default_service = google_compute_backend_service.default.id
+  default_service = google_compute_backend_bucket.placeholder.id
 }
 
 resource "google_compute_target_http_proxy" "jupyter" {
@@ -43,6 +54,6 @@ output "url_map_name" {
   value = google_compute_url_map.jupyter.name
 }
 
-output "default_backend_service_name" {
-  value = google_compute_backend_service.default.name
+output "placeholder_backend_bucket_name" {
+  value = google_compute_backend_bucket.placeholder.name
 }
