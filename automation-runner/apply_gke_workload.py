@@ -266,8 +266,11 @@ def main():
     # Helm must become healthy before the standalone NEG is attached. This
     # avoids a circular dependency where NEG readiness blocks proxy-api,
     # while the load balancer cannot be created until Helm has completed.
+    # Let GKE generate the NEG name. The generated name includes the cluster
+    # UID and therefore remains collision-free when an Autopilot cluster is
+    # deleted and recreated while old NEGs still exist temporarily.
     neg_annotation = json.dumps(
-        {"exposed_ports": {"80": {"name": f"neg-jupyter-{task}"}}},
+        {"exposed_ports": {"80": {}}},
         separators=(",", ":"),
     )
     run([
