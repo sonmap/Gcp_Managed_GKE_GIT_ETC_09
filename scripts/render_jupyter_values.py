@@ -15,31 +15,43 @@ def main() -> int:
         "hub": {
             "config": {
                 "JupyterHub": {"authenticator_class": "google"},
-                "Authenticator": {"allow_all": False, "allowed_users": request["identity"]["members"]},
+                "Authenticator": {
+                    "allow_all": False,
+                    "allowed_users": request["identity"]["members"],
+                },
                 "GoogleOAuthenticator": {
                     "client_id": os.environ["JUPYTER_OAUTH_CLIENT_ID"],
                     "client_secret": os.environ["JUPYTER_OAUTH_CLIENT_SECRET"],
                     "oauth_callback_url": f"https://{request['gke']['jupyter_domain']}/hub/oauth_callback",
                     "hosted_domain": ["sonmap.net"],
+                    "strip_domain": False,
                     "login_service": "Sonmap Google Account",
                 },
             }
         },
         "proxy": {
-            "service": {
-                "type": "ClusterIP",
-                "annotations": {
-                    "cloud.google.com/neg": json.dumps(
-                        {"exposed_ports": {"80": {"name": f"neg-jupyter-{task}"}}}, separators=(",", ":")
-                    )
-                },
-            }
+            # NEG is attached only after Helm becomes healthy. The automation
+            # then waits for ServiceNetworkEndpointGroup Synced=True and reads
+            # the GKE-generated NEG name from cloud.google.com/neg-status.
+            "service": {"type": "ClusterIP"},
         },
         "singleuser": {
             "serviceAccountName": f"ksa-jupyter-{task}",
             "cpu": {"guarantee": 1, "limit": 2},
             "memory": {"guarantee": "8G", "limit": "16G"},
-            "storage": {"type": "dynamic", "capacity": "40Gi", "dynamic": {"storageClass": "standard-rwo"}},
+            "storage": {
+                "type": "dynamic",
+                "capacity": "40Gi",
+                "dynamic": {"storageClass": "standard-rwo"},
+            },
+            # GKE Autopilot rejects the privileged block-cloud-metadata
+            # init container (NET_ADMIN). Workload Identity instead requires
+            # access to the GKE metadata server.
+            "cloudMetadata": {"blockWithIptables": False},
+            "networkPolicy": {
+                "enabled": True,
+                "egressAllowRules": {"cloudMetadataServer": True},
+            },
         },
         "cull": {"enabled": True, "timeout": 3600},
     }
