@@ -23,7 +23,7 @@ locals {
   lb_admin_gke_project_roles = toset([
     "roles/compute.loadBalancerAdmin",
     "roles/compute.securityAdmin",
-    "roles/certificatemanager.editor",
+    "roles/certificatemanager.owner",
   ])
 
   workflow_gke_project_roles = toset([
@@ -115,8 +115,9 @@ resource "google_project_iam_member" "gke_admin_gke_project_admin" {
 }
 
 # The Infrastructure Manager load-balancer deployment runs as sa-im-lb-admin.
-# Compute roles manage the regional internal HTTPS load balancer, while
-# Certificate Manager Editor creates the regional DNS authorization/certificate.
+# Compute roles manage the load balancer. Certificate Manager Owner is required
+# here because this deployment must also delete legacy regional certificates
+# while migrating from the old Internal ALB design to the shared External ALB.
 resource "google_project_iam_member" "lb_admin_gke_project_roles" {
   for_each = local.full_scope && var.manage_lb_admin_gke_project_iam ? local.lb_admin_gke_project_roles : toset([])
 
