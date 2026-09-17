@@ -28,3 +28,14 @@ resource "google_artifact_registry_repository_iam_member" "gke_nodes_reader" {
   role       = "roles/artifactregistry.reader"
   member     = "serviceAccount:${data.google_project.gke.number}-compute@developer.gserviceaccount.com"
 }
+
+# The workspace operator may perform an emergency/manual Helm upgrade from
+# instance-son. Helm OCI pull requires repository read permission for the
+# active gcloud user; keep the grant repository-scoped rather than project-wide.
+resource "google_artifact_registry_repository_iam_member" "workspace_admin_reader" {
+  project    = var.cicd_project_id
+  location   = var.region
+  repository = google_artifact_registry_repository.platform.name
+  role       = "roles/artifactregistry.reader"
+  member     = "user:${var.workspace_admin_subject}"
+}
