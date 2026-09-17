@@ -6,8 +6,6 @@ resource "google_compute_global_address" "jupyter" {
 
 # Foundation is created before any sandbox namespace/NEG exists.
 # Keep an empty classic External backend service as the URL-map default.
-# Sandbox host rules will later route jupyter-sbxXX domains to their own
-# NEG-backed global backend services.
 resource "google_compute_backend_service" "default" {
   project               = var.gke_project_id
   name                  = "bes-${var.alb_name}-default"
@@ -16,10 +14,35 @@ resource "google_compute_backend_service" "default" {
   timeout_sec           = 30
 }
 
+# Sandbox backend services are created by the per-task Infrastructure Manager
+# deployment. Foundation only references them and owns the shared URL map.
+data "google_compute_backend_service" "sandbox" {
+  for_each = var.sandbox_routes
+
+  project = var.gke_project_id
+  name    = each.value.backend_service_name
+}
+
 resource "google_compute_url_map" "jupyter" {
   project         = var.gke_project_id
   name            = "urlmap-${var.alb_name}"
   default_service = google_compute_backend_service.default.id
+
+  dynamic "host_rule" {
+    for_each = var.sandbox_routes
+    content {
+      hosts        = [host_rule.value.hostname]
+      path_matcher = host_rule.key
+    }
+  }
+
+  dynamic "path_matcher" {
+    for_each = var.sandbox_routes
+    content {
+      name            = path_matcher.key
+      default_service = data.google_compute_backend_service.sandbox[path_matcher.key].id
+    }
+  }
 }
 
 resource "google_compute_target_http_proxy" "jupyter" {
@@ -48,4 +71,8 @@ output "url_map_name" {
 
 output "default_backend_service_name" {
   value = google_compute_backend_service.default.name
+}
+
+output "sandbox_routes" {
+  value = var.sandbox_routes
 }
