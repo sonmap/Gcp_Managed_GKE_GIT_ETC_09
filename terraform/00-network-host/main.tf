@@ -126,15 +126,18 @@ resource "google_compute_subnetwork_iam_member" "task_vm" {
   member     = "serviceAccount:${var.task_vm_service_account_email}"
 }
 
-# Optional and protected by a separate global approval gate because the
-# Foundation executor can have subnet/network permissions without
-# compute.firewalls.create in the Shared VPC host project. Both switches must
-# be true, and the caller must already have firewall administration permission.
+# Classic External Application Load Balancer health checks reach standalone
+# GKE NEG Pod endpoints from Google's health-check ranges. Use the Pod CIDR as
+# the destination instead of a generated GKE node tag, because Autopilot node
+# tags can change when the cluster is recreated.
+#
+# This rule is protected by the global approval gate because the network host
+# executor must already have compute.firewalls.create/update permissions.
 resource "google_compute_firewall" "health_checks_to_main_pods" {
   count = var.enable_firewall_changes && var.create_health_check_firewall ? 1 : 0
 
   project            = var.shared_vpc_host_project_id
-  name               = "fw-dev-sbx-gke-allow-l7-healthcheck"
+  name               = "fw-allow-jupyter-alb-hc"
   network            = data.google_compute_network.shared.name
   direction          = "INGRESS"
   source_ranges      = ["35.191.0.0/16", "130.211.0.0/22"]
@@ -146,8 +149,8 @@ resource "google_compute_firewall" "health_checks_to_main_pods" {
   }
 }
 
-# Regional internal ALB data-plane traffic originates from the proxy-only
-# subnet and must reach the standalone NEG endpoints on the Jupyter proxy port.
+# Legacy regional internal ALB data-plane rule retained for state compatibility.
+# It is not required by the current Classic External ALB path.
 resource "google_compute_firewall" "internal_alb_proxy_to_main_pods" {
   count = var.enable_firewall_changes && var.create_health_check_firewall ? 1 : 0
 
