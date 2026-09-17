@@ -73,11 +73,27 @@ steps:
           --values=/workspace/jupyter-values.json \
           --atomic --wait --timeout=15m
 
+  # Attach the standalone NEG only after Helm is healthy. Attaching it during
+  # Helm --wait can inject a NEG readiness gate before the LB exists and cause
+  # a circular wait between proxy readiness and backend creation.
+  - name: ${_AUTOMATION_IMAGE}
+    id: attach-standalone-neg
+    env:
+      - KUBECONFIG=/workspace/kubeconfig.json
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        kubectl annotate service proxy-public \
+          --namespace="${_GKE_NAMESPACE}" \
+          'cloud.google.com/neg={"exposed_ports":{"80":{}}}' \
+          --overwrite
+
   - name: ${_AUTOMATION_IMAGE}
     id: prepare-loadbalancer-bundle
     entrypoint: bash
     env:
-      - LB_ADMIN_SA=${_LB_ADMIN_SA}
+      - KUBECONFIG=/workspace/kubeconfig.json
     args:
       - -ceu
       - |
