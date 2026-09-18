@@ -6,14 +6,14 @@ steps:
       - -f
       - automation-runner/Dockerfile
       - -t
-      - ${_AUTOMATION_IMAGE_REPO}:git-${SHORT_SHA}
+      - ${_AUTOMATION_IMAGE_REPO}:${_RELEASE_ID}
       - -t
       - ${_AUTOMATION_IMAGE_REPO}:latest
       - automation-runner
 
   - name: gcr.io/cloud-builders/docker
     id: push-automation-runner-release
-    args: [push, ${_AUTOMATION_IMAGE_REPO}:git-${SHORT_SHA}]
+    args: [push, ${_AUTOMATION_IMAGE_REPO}:${_RELEASE_ID}]
 
   - name: gcr.io/cloud-builders/docker
     id: push-automation-runner-latest
@@ -26,14 +26,14 @@ steps:
       - -f
       - cloudrun-provisioner/Dockerfile
       - -t
-      - ${_PROVISIONER_IMAGE_REPO}:git-${SHORT_SHA}
+      - ${_PROVISIONER_IMAGE_REPO}:${_RELEASE_ID}
       - -t
       - ${_PROVISIONER_IMAGE_REPO}:latest
       - cloudrun-provisioner
 
   - name: gcr.io/cloud-builders/docker
     id: push-provisioner-release
-    args: [push, ${_PROVISIONER_IMAGE_REPO}:git-${SHORT_SHA}]
+    args: [push, ${_PROVISIONER_IMAGE_REPO}:${_RELEASE_ID}]
 
   - name: gcr.io/cloud-builders/docker
     id: push-provisioner-latest
@@ -45,12 +45,12 @@ steps:
     args:
       - -ceu
       - |
-        release_id="git-${SHORT_SHA}"
+        release_id="${_RELEASE_ID}"
         bash scripts/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "${release_id}" | tee /workspace/source.env
         . /workspace/source.env
 
         export RELEASE_ID="${release_id}"
-        export COMMIT_SHA_VALUE="${COMMIT_SHA}"
+        export COMMIT_SHA_VALUE="${_COMMIT_SHA}"
         export RUNNER_IMAGE="${_AUTOMATION_IMAGE_REPO}:${release_id}"
         export PROVISIONER_IMAGE="${_PROVISIONER_IMAGE_REPO}:${release_id}"
         export ARCHIVE_URI="${archive_uri}"
@@ -95,7 +95,7 @@ steps:
           --project="${_CICD_PROJECT_ID}" \
           --region="${_REGION}" \
           --image="${_PROVISIONER_IMAGE_REPO}:latest" \
-          --update-env-vars="PROVISIONER_SOURCE_VERSION=git-${SHORT_SHA}" \
+          --update-env-vars="PROVISIONER_SOURCE_VERSION=${_RELEASE_ID}" \
           --quiet
 
 substitutions:
@@ -104,8 +104,11 @@ substitutions:
   _BUNDLE_BUCKET: prj-b-cicd-local-236d-sandbox-bundles
   _AUTOMATION_IMAGE_REPO: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/sandbox-automation-runner
   _PROVISIONER_IMAGE_REPO: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/run-sandbox-provisioner
+  _RELEASE_ID: git-manual
+  _COMMIT_SHA: manual
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  dynamicSubstitutions: true
 
 timeout: 2400s
