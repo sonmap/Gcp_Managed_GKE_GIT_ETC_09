@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
-import hashlib
 import json
 import os
 import subprocess
 import sys
-import tempfile
 import time
-import zipfile
 from pathlib import Path
 
 
 def run(args, *, input_text=None, env=None):
+    command = " ".join(args)
+    print(f"[RUN] {command}", flush=True)
     result = subprocess.run(
         args,
         input=input_text,
@@ -20,7 +19,6 @@ def run(args, *, input_text=None, env=None):
         env=env,
     )
     if result.returncode:
-        command = " ".join(args)
         raise RuntimeError(
             f"command failed ({result.returncode}): {command}\n"
             f"stdout:\n{result.stdout}\n"
@@ -47,11 +45,11 @@ def main():
     project = os.environ["CICD_PROJECT_ID"]
     region = os.environ["GCP_REGION"]
     gke_admin = os.environ["GKE_ADMIN_SA"]
-    # Do not connect directly to the private control-plane IP. A Cloud Build
-    # private pool and the GKE control plane use Google-managed networks, so
-    # direct Private Endpoint routing requires a separate VPC/HA VPN topology.
-    # The DNS endpoint uses the GKE API path and avoids that transit-peering
-    # dependency while retaining IAM authentication.
+
+    # The shared ALB itself is Foundation-owned. This step owns only the
+    # Kubernetes/JupyterHub workload and the standalone NEG attachment.
+    # Backend service, health check, and URL-map route are reconciled by
+    # reconcile_postdeploy.py after this step completes.
     kubeconfig = Path("/workspace/kubeconfig")
     child_env = dict(os.environ)
     child_env["KUBECONFIG"] = str(kubeconfig)
@@ -66,8 +64,6 @@ def main():
     )
 
     # Read all required runtime secrets before changing Kubernetes resources.
-    # This prevents a missing Secret Manager version from leaving a partially
-    # applied namespace, RBAC, or service account.
     client_id = gcloud(
         "secrets", "versions", "access", "latest",
         "--secret=jupyter-oauth-client-id", f"--project={project}"
@@ -172,14 +168,7 @@ def main():
     }
     run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(manifest), env=child_env)
 
-    # Private GKE nodes in this PoC have no public egress. All JupyterHub
-    # runtime images must therefore be pulled from the internal Artifact
-    # Registry mirror, not from quay.io.
     image_prefix = f"{region}-docker.pkg.dev/{project}/ar-sandbox-platform"
-
-    # GoogleOAuthenticator with hosted_domain returns the local-part username
-    # (for example user01 for user01@sonmap.net). Normalize the approved email
-    # members to the same form before passing them to JupyterHub allowed_users.
     allowed_users = [
         member.split("@", 1)[0]
         for member in request["identity"]["members"]
@@ -200,9 +189,7 @@ def main():
                 "GoogleOAuthenticator": {
                     "client_id": client_id,
                     "client_secret": client_secret,
-                    "oauth_callback_url": (
-                        f"https://{gke['jupyter_domain']}/hub/oauth_callback"
-                    ),
+                    "oauth_callback_url": f"https://{gke['jupyter_domain']}/hub/oauth_callback",
                     "hosted_domain": ["sonmap.net"],
                     "strip_domain": True,
                     "login_service": "Sonmap Google Account",
@@ -224,13 +211,7 @@ def main():
                     "limits": {"cpu": "500m", "memory": "1Gi"},
                 },
             },
-            # Do not attach the standalone NEG during Helm --wait. If the NEG
-            # readiness gate is injected before the load balancer exists, the
-            # proxy Pod becomes NotReady and proxy-api has no Ready endpoint.
-            # That makes the Hub fail with HTTP 599 and Helm deadlocks.
-            "service": {
-                "type": "ClusterIP",
-            },
+            "service": {"type": "ClusterIP"},
         },
         "singleuser": {
             "image": {
@@ -245,27 +226,17 @@ def main():
                 "capacity": "40Gi",
                 "dynamic": {"storageClass": "standard-rwo"},
             },
-            # Autopilot rejects the chart's privileged block-cloud-metadata
-            # init container because it requires NET_ADMIN. Workload Identity
-            # requires access to the GKE metadata server instead.
             "cloudMetadata": {"blockWithIptables": False},
             "networkPolicy": {
                 "enabled": True,
                 "egressAllowRules": {"cloudMetadataServer": True},
             },
         },
-        # The image pre-puller hook does not declare limits compatible with
-        # the sandbox ResourceQuota. Disable it for this constrained PoC;
-        # the first user server can pull its image on demand instead.
         "prePuller": {
             "hook": {"enabled": False},
             "continuous": {"enabled": False},
         },
-        # GKE Autopilot rejects the chart's custom scheduler. Kubernetes'
-        # default scheduler is used when this component is disabled.
-        "scheduling": {
-            "userScheduler": {"enabled": False},
-        },
+        "scheduling": {"userScheduler": {"enabled": False}},
         "cull": {"enabled": True, "timeout": 3600},
     }
     values_file = Path("/workspace/jupyter-values.json")
@@ -280,12 +251,7 @@ def main():
         "--atomic", "--wait", "--timeout=15m",
     ], env=child_env)
 
-    # Helm must become healthy before the standalone NEG is attached. This
-    # avoids a circular dependency where NEG readiness blocks proxy-api,
-    # while the load balancer cannot be created until Helm has completed.
-    # Let GKE generate the NEG name. The generated name includes the cluster
-    # UID and therefore remains collision-free when an Autopilot cluster is
-    # deleted and recreated while old NEGs still exist temporarily.
+    # Attach the standalone NEG only after Helm is healthy.
     neg_annotation = json.dumps(
         {"exposed_ports": {"80": {}}},
         separators=(",", ":"),
@@ -297,11 +263,9 @@ def main():
         "--overwrite",
     ], env=child_env)
 
-    # GKE creates the standalone NEG asynchronously. The Service can retain a
-    # stale cloud.google.com/neg-status annotation briefly after its NEG spec
-    # changes, so do not trust the annotation merely because it exists. Wait
-    # until the ServiceNetworkEndpointGroup for proxy-public:80 reports
-    # Synced=True, then read the current NEG status and build the LB bundle.
+    # Wait only for GKE to materialize the NEG. No Infrastructure Manager/LB
+    # deployment is performed here. The next Cloud Build step attaches this
+    # NEG to the already-created shared ALB backend path.
     neg_status = None
     for _ in range(30):
         svcnegs = json.loads(run([
@@ -349,56 +313,12 @@ def main():
             "NEG status within 5 minutes"
         )
 
-    neg_name = neg_status.get("network_endpoint_groups", {}).get("80")
-    zones = neg_status.get("zones", [])
-    if not neg_name or not zones:
-        raise RuntimeError(f"Invalid GKE NEG status: {neg_status}")
-
-    neg_self_links = [
-        f"projects/{gke['project_id']}/zones/{zone}/networkEndpointGroups/{neg_name}"
-        for zone in zones
-    ]
-
-    bundle_prefix = sys.argv[1].rsplit("/", 1)[0]
-    lb_template = f"{bundle_prefix}/loadbalancer-template.zip"
-    lb_bundle = f"{bundle_prefix}/loadbalancer-ready.zip"
-    orchestrator_env = dict(os.environ)
-
-    with tempfile.TemporaryDirectory() as temp_dir:
-        temp = Path(temp_dir)
-        template_path = temp / "loadbalancer-template.zip"
-        work = temp / "loadbalancer"
-        output_path = temp / "loadbalancer-ready.zip"
-        gcloud("storage", "cp", lb_template, str(template_path), env=orchestrator_env)
-        with zipfile.ZipFile(template_path) as archive:
-            archive.extractall(work)
-
-        variables_path = work / "terraform.auto.tfvars.json"
-        variables = json.loads(variables_path.read_text(encoding="utf-8"))
-        variables["neg_self_links"] = neg_self_links
-        variables_path.write_text(json.dumps(variables, indent=2, sort_keys=True), encoding="utf-8")
-
-        with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as archive:
-            for path in sorted(work.rglob("*")):
-                if path.is_file():
-                    archive.write(path, path.relative_to(work))
-        gcloud("storage", "cp", str(output_path), lb_bundle, env=orchestrator_env)
-
-    deployment_key = hashlib.sha256(
-        request["project"]["project_id"].encode("utf-8")
-    ).hexdigest()[:8]
-    lb_service_account = f"sa-im-lb-admin@{project}.iam.gserviceaccount.com"
-    gcloud(
-        "infra-manager", "deployments", "apply",
-        f"projects/{project}/locations/{region}/deployments/"
-        f"im-{task}-{deployment_key}-loadbalancer",
-        f"--service-account=projects/{project}/serviceAccounts/{lb_service_account}",
-        f"--gcs-source={lb_bundle}",
-        f"--worker-pool={os.environ['WORKER_POOL']}",
-        "--provider-source=SERVICE_MAINTAINED",
-        f"--annotations=request_id={request['request_id']},task={task}",
-        "--quiet",
-        env=orchestrator_env,
+    neg_name = neg_status["network_endpoint_groups"]["80"]
+    zones = neg_status["zones"]
+    print(
+        f"[OK] JupyterHub and standalone NEG ready: task={task} "
+        f"neg={neg_name} zones={','.join(zones)}",
+        flush=True,
     )
 
 
