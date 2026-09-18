@@ -13,6 +13,7 @@ locals {
     filesha256("${path.module}/../../automation-runner/Dockerfile"),
     filesha256("${path.module}/../../automation-runner/requirements.txt"),
     filesha256("${path.module}/../../automation-runner/apply_gke_workload.py"),
+    filesha256("${path.module}/../../automation-runner/reconcile_postdeploy.py"),
   ]))
 }
 
@@ -74,6 +75,41 @@ resource "terraform_data" "provisioner_image" {
     google_artifact_registry_repository.platform,
     google_artifact_registry_repository_iam_member.cloud_build_writer,
     google_storage_bucket_iam_member.cloud_build_reads_staged_source,
+  ]
+}
+
+# A push to main produces one immutable platform release:
+# - runner image :git-<SHORT_SHA> and :latest
+# - provisioner image :git-<SHORT_SHA> and :latest
+# - sandbox-source.zip + release.json in the internal bundle bucket
+# - Cloud Run provisioner rolled to the new image
+resource "google_cloudbuild_trigger" "platform_release" {
+  project         = var.cicd_project_id
+  location        = var.region
+  name            = "trigger-platform-release"
+  description     = "Build and publish immutable sandbox platform release from main"
+  service_account = google_service_account.automation["orchestrator"].id
+  filename        = "cloudbuild/platform-release.yaml"
+
+  github {
+    owner = var.github_owner
+    name  = var.github_repository
+    push { branch = "^main$" }
+  }
+
+  substitutions = {
+    _CICD_PROJECT_ID       = var.cicd_project_id
+    _REGION                = var.region
+    _BUNDLE_BUCKET         = google_storage_bucket.bundles.name
+    _AUTOMATION_IMAGE_REPO = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/sandbox-automation-runner"
+    _PROVISIONER_IMAGE_REPO = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/run-sandbox-provisioner"
+  }
+
+  depends_on = [
+    google_artifact_registry_repository_iam_member.orchestrator_release_writer,
+    google_storage_bucket_iam_member.orchestrator_platform_release_writer,
+    google_project_iam_member.orchestrator_cloud_run_developer,
+    google_service_account_iam_member.orchestrator_uses_api_runtime,
   ]
 }
 
