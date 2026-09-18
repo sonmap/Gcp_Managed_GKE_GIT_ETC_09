@@ -73,9 +73,9 @@ steps:
           --values=/workspace/jupyter-values.json \
           --atomic --wait --timeout=15m
 
-  # Attach the standalone NEG only after Helm is healthy. Attaching it during
-  # Helm --wait can inject a NEG readiness gate before the LB exists and cause
-  # a circular wait between proxy readiness and backend creation.
+  # Foundation already owns the shared ALB. The sandbox only exposes its NEG;
+  # reconcile-postdeploy creates/reuses HC + backend service, attaches the NEG,
+  # and adds the host/path rule to the shared URL map.
   - name: ${_AUTOMATION_IMAGE}
     id: attach-standalone-neg
     env:
@@ -90,44 +90,12 @@ steps:
           --overwrite
 
   - name: ${_AUTOMATION_IMAGE}
-    id: prepare-loadbalancer-bundle
-    entrypoint: bash
-    env:
-      - KUBECONFIG=/workspace/kubeconfig.json
-    args:
-      - -ceu
-      - |
-        gcloud storage cp "${_BUNDLE_PREFIX}/loadbalancer-template.zip" /workspace/lb-template.zip
-        for attempt in $(seq 1 30); do
-          if python3 scripts/prepare_lb_bundle.py /workspace/request.json /workspace/lb-template.zip /workspace/loadbalancer.zip; then
-            break
-          fi
-          if [ "$attempt" -eq 30 ]; then exit 1; fi
-          sleep 10
-        done
-        gcloud storage cp /workspace/loadbalancer.zip "${_BUNDLE_PREFIX}/loadbalancer.zip"
-
-  - name: ${_AUTOMATION_IMAGE}
-    id: apply-loadbalancer
-    entrypoint: bash
-    args:
-      - -ceu
-      - |
-        task_name="$(python3 -c 'import json; print(json.load(open("/workspace/request.json"))["task"]["name"])')"
-        gcloud infra-manager deployments apply \
-          "projects/$PROJECT_ID/locations/$LOCATION/deployments/im-${task_name}-lb" \
-          --service-account="projects/$PROJECT_ID/serviceAccounts/${_LB_ADMIN_SA}" \
-          --gcs-source="${_BUNDLE_PREFIX}/loadbalancer.zip" \
-          --worker-pool="${_WORKER_POOL}" \
-          --annotations="request_id=${_REQUEST_ID},task=${task_name}" \
-          --quiet
-
-  - name: ${_AUTOMATION_IMAGE}
     id: reconcile-postdeploy
     entrypoint: python3
     env:
       - KUBECONFIG=/workspace/kubeconfig.json
       - CICD_PROJECT_ID=$PROJECT_ID
+      - GKE_ADMIN_SA=${_GKE_ADMIN_SA}
       - LB_ADMIN_SA=${_LB_ADMIN_SA}
       - SHARED_URL_MAP_NAME=${_SHARED_URL_MAP_NAME}
     args: [/opt/sandbox/reconcile_postdeploy.py, /workspace/request.json]
