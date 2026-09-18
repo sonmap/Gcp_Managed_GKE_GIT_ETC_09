@@ -3,9 +3,13 @@ provider "google" {
   region  = var.region
 }
 
-# Each sandbox owns only its global health check and EXTERNAL backend service.
-# The shared Classic External ALB (IP / forwarding rule / proxy / URL map) is
-# created once by terraform/01-foundation/60-external-alb.
+# LEGACY / manual fallback only.
+# Normal sandbox provisioning no longer applies this module through
+# Infrastructure Manager. Foundation creates the shared ALB once, and
+# automation-runner/reconcile_postdeploy.py creates/reuses only the per-task
+# health check + backend service, attaches the task NEG, and updates the shared
+# URL map directly. Keeping this module allows manual recovery/import without
+# putting the shared ALB itself into per-task state.
 resource "google_compute_health_check" "jupyter" {
   project = var.gke_project_id
   name    = "hc-jupyter-${var.task_name}"
@@ -15,9 +19,7 @@ resource "google_compute_health_check" "jupyter" {
 
   http_health_check {
     port_specification = "USE_SERVING_PORT"
-    # proxy-public terminates on configurable-http-proxy. Its native health
-    # endpoint is /_chp_healthz; /hub/health is not the backend health target.
-    request_path = "/_chp_healthz"
+    request_path        = "/_chp_healthz"
   }
 }
 
