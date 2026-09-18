@@ -98,11 +98,13 @@ resource "google_cloudbuild_trigger" "platform_release" {
   }
 
   substitutions = {
-    _CICD_PROJECT_ID       = var.cicd_project_id
-    _REGION                = var.region
-    _BUNDLE_BUCKET         = google_storage_bucket.bundles.name
-    _AUTOMATION_IMAGE_REPO = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/sandbox-automation-runner"
+    _CICD_PROJECT_ID        = var.cicd_project_id
+    _REGION                 = var.region
+    _BUNDLE_BUCKET          = google_storage_bucket.bundles.name
+    _AUTOMATION_IMAGE_REPO  = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/sandbox-automation-runner"
     _PROVISIONER_IMAGE_REPO = "${var.region}-docker.pkg.dev/${var.cicd_project_id}/ar-sandbox-platform/run-sandbox-provisioner"
+    _RELEASE_ID             = "git-$${SHORT_SHA}"
+    _COMMIT_SHA             = "$${COMMIT_SHA}"
   }
 
   depends_on = [
