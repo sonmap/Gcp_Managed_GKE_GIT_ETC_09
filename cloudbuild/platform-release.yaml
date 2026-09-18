@@ -1,0 +1,72 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build-automation-runner
+    args:
+      - build
+      - -f
+      - automation-runner/Dockerfile
+      - -t
+      - ${_AUTOMATION_IMAGE_REPO}:git-${SHORT_SHA}
+      - -t
+      - ${_AUTOMATION_IMAGE_REPO}:latest
+      - automation-runner
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-automation-runner-release
+    args: [push, ${_AUTOMATION_IMAGE_REPO}:git-${SHORT_SHA}]
+
+  - name: gcr.io/cloud-builders/docker
+    id: push-automation-runner-latest
+    args: [push, ${_AUTOMATION_IMAGE_REPO}:latest]
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: publish-sandbox-source
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        release_id="git-${SHORT_SHA}"
+        bash scripts/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "${release_id}" | tee /workspace/source.env
+        . /workspace/source.env
+
+        python3 - <<'PY'
+        import json
+        import os
+
+        payload = {
+            "release_id": os.environ["RELEASE_ID"],
+            "git_commit": os.environ["COMMIT_SHA_VALUE"],
+            "runner_image": os.environ["RUNNER_IMAGE"],
+            "archive_uri": os.environ["ARCHIVE_URI"],
+            "generation": int(os.environ["GENERATION"]),
+            "sha256": os.environ["SHA256"],
+        }
+        with open("/workspace/release.json", "w", encoding="utf-8") as stream:
+            json.dump(payload, stream, indent=2, sort_keys=True)
+        PY
+
+        gcloud storage cp /workspace/release.json \
+          "gs://${_BUNDLE_BUCKET}/platform-releases/${release_id}/release.json"
+
+        echo "============================================================"
+        echo "PLATFORM RELEASE READY"
+        echo "release_id=${release_id}"
+        echo "runner_image=${_AUTOMATION_IMAGE_REPO}:${release_id}"
+        cat /workspace/source.env
+        echo "============================================================"
+    env:
+      - RELEASE_ID=git-${SHORT_SHA}
+      - COMMIT_SHA_VALUE=${COMMIT_SHA}
+      - RUNNER_IMAGE=${_AUTOMATION_IMAGE_REPO}:git-${SHORT_SHA}
+      - ARCHIVE_URI=$(cat /workspace/source.env 2>/dev/null | sed -n 's/^archive_uri=//p')
+      - GENERATION=$(cat /workspace/source.env 2>/dev/null | sed -n 's/^generation=//p')
+      - SHA256=$(cat /workspace/source.env 2>/dev/null | sed -n 's/^sha256=//p')
+
+substitutions:
+  _BUNDLE_BUCKET: prj-b-cicd-local-236d-sandbox-bundles
+  _AUTOMATION_IMAGE_REPO: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/sandbox-automation-runner
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+timeout: 1800s
