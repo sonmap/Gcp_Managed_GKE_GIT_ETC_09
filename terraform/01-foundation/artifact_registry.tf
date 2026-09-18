@@ -18,6 +18,16 @@ resource "google_artifact_registry_repository_iam_member" "cloud_build_writer" {
   member     = "serviceAccount:${data.google_project.cicd.number}-compute@developer.gserviceaccount.com"
 }
 
+# The platform-release Cloud Build runs as the sandbox orchestrator SA and
+# publishes immutable runner/provisioner tags plus the compatibility :latest tag.
+resource "google_artifact_registry_repository_iam_member" "orchestrator_release_writer" {
+  project    = var.cicd_project_id
+  location   = var.region
+  repository = google_artifact_registry_repository.platform.name
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${google_service_account.automation["orchestrator"].email}"
+}
+
 # Autopilot nodes use the Compute Engine default service account of the GKE
 # project. The JupyterHub images are stored in the separate CI/CD project, so
 # this narrow cross-project reader grant is required for node image pulls.
