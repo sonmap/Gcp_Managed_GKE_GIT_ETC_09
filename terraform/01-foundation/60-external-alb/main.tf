@@ -4,8 +4,8 @@ resource "google_compute_global_address" "jupyter" {
   address_type = "EXTERNAL"
 }
 
-# Foundation is created before any sandbox namespace/NEG exists.
-# Keep an empty classic External backend service as the URL-map default.
+# Foundation owns the shared Classic External ALB only once.
+# Per-sandbox backends/NEGs/routes are attached later by automation-runner.
 resource "google_compute_backend_service" "default" {
   project               = var.gke_project_id
   name                  = "bes-${var.alb_name}-default"
@@ -14,34 +14,16 @@ resource "google_compute_backend_service" "default" {
   timeout_sec           = 30
 }
 
-# Sandbox backend services are created by the per-task Infrastructure Manager
-# deployment. Foundation only references them and owns the shared URL map.
-data "google_compute_backend_service" "sandbox" {
-  for_each = var.sandbox_routes
-
-  project = var.gke_project_id
-  name    = each.value.backend_service_name
-}
-
 resource "google_compute_url_map" "jupyter" {
   project         = var.gke_project_id
   name            = "urlmap-${var.alb_name}"
   default_service = google_compute_backend_service.default.id
 
-  dynamic "host_rule" {
-    for_each = var.sandbox_routes
-    content {
-      hosts        = [host_rule.value.hostname]
-      path_matcher = host_rule.key
-    }
-  }
-
-  dynamic "path_matcher" {
-    for_each = var.sandbox_routes
-    content {
-      name            = path_matcher.key
-      default_service = data.google_compute_backend_service.sandbox[path_matcher.key].id
-    }
+  # host_rule/path_matcher are intentionally managed out-of-band by the
+  # per-sandbox reconciler. Foundation must not delete routes for sbx01+ on a
+  # later terraform apply.
+  lifecycle {
+    ignore_changes = [host_rule, path_matcher]
   }
 }
 
@@ -106,8 +88,4 @@ output "https_proxy_name" {
 
 output "https_forwarding_rule_name" {
   value = google_compute_global_forwarding_rule.https.name
-}
-
-output "sandbox_routes" {
-  value = var.sandbox_routes
 }
