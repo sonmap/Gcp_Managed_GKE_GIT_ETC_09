@@ -21,19 +21,12 @@ variable "ssl_certificate_name" {
   default = "cert-jupyter-sbx01-self"
 }
 
-# Central route registry for the one shared External ALB.
-# Each sandbox creates its own global EXTERNAL backend service separately;
-# this Foundation state is the only state allowed to update the shared URL map.
+# Deprecated compatibility input. Per-sandbox host/path routes are now added
+# by automation-runner/reconcile_postdeploy.py and are not Foundation state.
 variable "sandbox_routes" {
   type = map(object({
     hostname             = string
     backend_service_name = string
   }))
-
-  default = {
-    sbx01 = {
-      hostname             = "jupyter-sbx01.sonmap.net"
-      backend_service_name = "bes-jupyter-sbx01"
-    }
-  }
+  default = {}
 }
