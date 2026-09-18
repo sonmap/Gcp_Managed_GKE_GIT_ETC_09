@@ -177,6 +177,14 @@ def main():
     # Registry mirror, not from quay.io.
     image_prefix = f"{region}-docker.pkg.dev/{project}/ar-sandbox-platform"
 
+    # GoogleOAuthenticator with hosted_domain returns the local-part username
+    # (for example user01 for user01@sonmap.net). Normalize the approved email
+    # members to the same form before passing them to JupyterHub allowed_users.
+    allowed_users = [
+        member.split("@", 1)[0]
+        for member in request["identity"]["members"]
+    ]
+
     values = {
         "hub": {
             "image": {
@@ -187,7 +195,7 @@ def main():
                 "JupyterHub": {"authenticator_class": "google"},
                 "Authenticator": {
                     "allow_all": False,
-                    "allowed_users": request["identity"]["members"],
+                    "allowed_users": allowed_users,
                 },
                 "GoogleOAuthenticator": {
                     "client_id": client_id,
@@ -196,9 +204,7 @@ def main():
                         f"https://{gke['jupyter_domain']}/hub/oauth_callback"
                     ),
                     "hosted_domain": ["sonmap.net"],
-                    # Keep the full email address as the JupyterHub username so
-                    # it matches allowed_users such as user01@sonmap.net.
-                    "strip_domain": False,
+                    "strip_domain": True,
                     "login_service": "Sonmap Google Account",
                 },
             },
