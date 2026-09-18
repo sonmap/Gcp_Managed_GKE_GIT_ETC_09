@@ -122,6 +122,16 @@ steps:
           --annotations="request_id=${_REQUEST_ID},task=${task_name}" \
           --quiet
 
+  - name: ${_AUTOMATION_IMAGE}
+    id: reconcile-postdeploy
+    entrypoint: python3
+    env:
+      - KUBECONFIG=/workspace/kubeconfig.json
+      - CICD_PROJECT_ID=$PROJECT_ID
+      - LB_ADMIN_SA=${_LB_ADMIN_SA}
+      - SHARED_URL_MAP_NAME=${_SHARED_URL_MAP_NAME}
+    args: [/opt/sandbox/reconcile_postdeploy.py, /workspace/request.json]
+
 substitutions:
   _ACTION: create
   _REQUEST_ID: REPLACE_REQUEST_ID
@@ -137,6 +147,7 @@ substitutions:
   _DATA_ADMIN_SA: sa-im-data-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
   _GKE_ADMIN_SA: sa-im-gke-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
   _LB_ADMIN_SA: sa-im-lb-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com
+  _SHARED_URL_MAP_NAME: urlmap-alb-jupyter-shared
   _JUPYTER_CHART: oci://asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/jupyterhub
   _JUPYTER_CHART_VERSION: 4.2.0
   _AUTOMATION_IMAGE: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/sandbox-automation-runner:latest
