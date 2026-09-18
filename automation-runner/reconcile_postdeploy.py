@@ -156,6 +156,7 @@ def main():
     task = request["task"]["name"]
     gke = request["gke"]
     cicd_project = os.environ["CICD_PROJECT_ID"]
+    gke_admin = os.environ["GKE_ADMIN_SA"]
     lb_admin = os.environ.get(
         "LB_ADMIN_SA",
         f"sa-im-lb-admin@{cicd_project}.iam.gserviceaccount.com",
@@ -163,9 +164,10 @@ def main():
     url_map_name = os.environ.get("SHARED_URL_MAP_NAME", "urlmap-alb-jupyter-shared")
     backend_name = f"bes-jupyter-{task}"
 
-    # Kubernetes verification continues to use the GKE-admin kubeconfig/auth
-    # from the parent runner process.
-    verify_workload_identity(request, dict(os.environ))
+    # Kubernetes verification uses the dedicated GKE admin identity.
+    gke_env = dict(os.environ)
+    gke_env["CLOUDSDK_AUTH_IMPERSONATE_SERVICE_ACCOUNT"] = gke_admin
+    verify_workload_identity(request, gke_env)
 
     # Shared ALB changes are made only through the dedicated LB admin identity.
     lb_env = dict(os.environ)
