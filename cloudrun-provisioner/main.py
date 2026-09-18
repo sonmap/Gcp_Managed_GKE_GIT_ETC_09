@@ -106,6 +106,7 @@ def download_source_archive(source: dict, destination: Path) -> Path:
         archive.extractall(destination)
     return destination
 
+
 def stage_variables(payload: dict) -> dict[str, dict]:
     task = payload["task"]
     project = payload["project"]
@@ -256,6 +257,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
     region = os.environ["GCP_REGION"]
     task = payload["task"]["name"]
     request_id = payload["request_id"]
+    release_id = payload["source"]["release_id"]
     deployment_key = hashlib.sha256(payload["project"]["project_id"].encode()).hexdigest()[:8]
     worker_pool = os.environ["WORKER_POOL"]
     service_account = f"projects/{project}/serviceAccounts/sa-sandbox-terraform@{project}.iam.gserviceaccount.com"
@@ -286,33 +288,50 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
             "--quiet"
         )
 
+    # The approved source release and runner image use the same immutable tag.
+    # This prevents a newer :latest image from changing an already-approved build.
     automation_image = (
         f"{region}-docker.pkg.dev/{project}/ar-sandbox-platform/"
-        "sandbox-automation-runner:latest"
+        f"sandbox-automation-runner:{release_id}"
     )
+    common_env = [
+        f"CICD_PROJECT_ID={project}",
+        f"GCP_REGION={region}",
+        f"GKE_ADMIN_SA=sa-im-gke-admin@{project}.iam.gserviceaccount.com",
+        f"LB_ADMIN_SA=sa-im-lb-admin@{project}.iam.gserviceaccount.com",
+        f"JUPYTER_CHART_URI={os.environ['JUPYTER_CHART_URI']}",
+        f"JUPYTER_CHART_VERSION={os.environ['JUPYTER_CHART_VERSION']}",
+        f"WORKER_POOL={worker_pool}",
+        "SHARED_URL_MAP_NAME=urlmap-alb-jupyter-shared",
+        "KUBECONFIG=/workspace/kubeconfig",
+    ]
     child_build = {
-        "steps": [{
-            "name": automation_image,
-            "entrypoint": "python3",
-            "args": [
-                "/opt/sandbox/apply_gke_workload.py",
-                f"{bundle_prefix}/approved-request.json",
-            ],
-            "env": [
-                f"CICD_PROJECT_ID={project}",
-                f"GCP_REGION={region}",
-                f"GKE_ADMIN_SA=sa-im-gke-admin@{project}.iam.gserviceaccount.com",
-                f"JUPYTER_CHART_URI={os.environ['JUPYTER_CHART_URI']}",
-                f"JUPYTER_CHART_VERSION={os.environ['JUPYTER_CHART_VERSION']}",
-                f"WORKER_POOL={worker_pool}",
-            ],
-        }],
+        "steps": [
+            {
+                "name": automation_image,
+                "entrypoint": "python3",
+                "args": [
+                    "/opt/sandbox/apply_gke_workload.py",
+                    f"{bundle_prefix}/approved-request.json",
+                ],
+                "env": common_env,
+            },
+            {
+                "name": automation_image,
+                "entrypoint": "python3",
+                "args": [
+                    "/opt/sandbox/reconcile_postdeploy.py",
+                    "/workspace/approved-request.json",
+                ],
+                "env": common_env,
+            },
+        ],
         "options": {
             "logging": "CLOUD_LOGGING_ONLY",
             "pool": {"name": worker_pool},
         },
         "serviceAccount": service_account,
-        "timeout": "1800s",
+        "timeout": "3600s",
     }
     child_config = json.dumps(child_build)
     gke_command = (
@@ -349,6 +368,7 @@ def start_build(payload: dict, request_uri: str, bundle_prefix: str):
         )
     )
     return client.create_build(project_id=project, build=build)
+
 
 def start_build_once(payload: dict, request_uri: str, bundle_prefix: str) -> tuple[str, bool]:
     bucket_name, prefix = parse_gs_uri(bundle_prefix)
