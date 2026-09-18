@@ -11,20 +11,28 @@ def main() -> int:
         request = json.load(stream)
 
     task = request["task"]["name"]
+    # GoogleOAuthenticator with hosted_domain returns the local-part username
+    # (for example user01 for user01@sonmap.net). Normalize the approved email
+    # members to the same form before passing them to JupyterHub allowed_users.
+    allowed_users = [
+        member.split("@", 1)[0]
+        for member in request["identity"]["members"]
+    ]
+
     values = {
         "hub": {
             "config": {
                 "JupyterHub": {"authenticator_class": "google"},
                 "Authenticator": {
                     "allow_all": False,
-                    "allowed_users": request["identity"]["members"],
+                    "allowed_users": allowed_users,
                 },
                 "GoogleOAuthenticator": {
                     "client_id": os.environ["JUPYTER_OAUTH_CLIENT_ID"],
                     "client_secret": os.environ["JUPYTER_OAUTH_CLIENT_SECRET"],
                     "oauth_callback_url": f"https://{request['gke']['jupyter_domain']}/hub/oauth_callback",
                     "hosted_domain": ["sonmap.net"],
-                    "strip_domain": False,
+                    "strip_domain": True,
                     "login_service": "Sonmap Google Account",
                 },
             }
