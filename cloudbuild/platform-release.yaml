@@ -29,6 +29,13 @@ steps:
         bash scripts/publish-sandbox-source.sh "${_BUNDLE_BUCKET}" "${release_id}" | tee /workspace/source.env
         . /workspace/source.env
 
+        export RELEASE_ID="${release_id}"
+        export COMMIT_SHA_VALUE="${COMMIT_SHA}"
+        export RUNNER_IMAGE="${_AUTOMATION_IMAGE_REPO}:${release_id}"
+        export ARCHIVE_URI="${archive_uri}"
+        export GENERATION="${generation}"
+        export SHA256="${sha256}"
+
         python3 - <<'PY'
         import json
         import os
@@ -54,13 +61,6 @@ steps:
         echo "runner_image=${_AUTOMATION_IMAGE_REPO}:${release_id}"
         cat /workspace/source.env
         echo "============================================================"
-    env:
-      - RELEASE_ID=git-${SHORT_SHA}
-      - COMMIT_SHA_VALUE=${COMMIT_SHA}
-      - RUNNER_IMAGE=${_AUTOMATION_IMAGE_REPO}:git-${SHORT_SHA}
-      - ARCHIVE_URI=$(cat /workspace/source.env 2>/dev/null | sed -n 's/^archive_uri=//p')
-      - GENERATION=$(cat /workspace/source.env 2>/dev/null | sed -n 's/^generation=//p')
-      - SHA256=$(cat /workspace/source.env 2>/dev/null | sed -n 's/^sha256=//p')
 
 substitutions:
   _BUNDLE_BUCKET: prj-b-cicd-local-236d-sandbox-bundles
