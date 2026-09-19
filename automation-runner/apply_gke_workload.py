@@ -201,13 +201,19 @@ def main():
             },
         },
         "proxy": {
+            # GKE Autopilot requires at least 500m CPU request when a Pod uses
+            # safe-to-evict=false. Protect the single CHP proxy from node
+            # scale-down so the NEG does not temporarily lose its only endpoint.
+            "annotations": {
+                "cluster-autoscaler.kubernetes.io/safe-to-evict": "false",
+            },
             "chp": {
                 "image": {
                     "name": f"{image_prefix}/jupyterhub-configurable-http-proxy",
                     "tag": "4.6.3",
                 },
                 "resources": {
-                    "requests": {"cpu": "250m", "memory": "512Mi"},
+                    "requests": {"cpu": "500m", "memory": "512Mi"},
                     "limits": {"cpu": "500m", "memory": "1Gi"},
                 },
             },
