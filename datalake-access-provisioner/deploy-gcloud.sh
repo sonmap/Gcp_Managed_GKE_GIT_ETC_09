@@ -20,8 +20,6 @@ RUNTIME_SA="${RUNTIME_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 SCHEDULER_SA="${SCHEDULER_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 BUILD_SA="${BUILD_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 CUSTOM_ROLE="projects/${DATA_PROJECT}/roles/${ROLE_ID}"
-PROJECT_NUMBER="$(gcloud projects describe "${CICD_PROJECT}" --format='value(projectNumber)')"
-DEFAULT_COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 CURRENT_ACCOUNT="$(gcloud config get-value account 2>/dev/null)"
 TAG="$(date -u +%Y%m%d-%H%M%S)"
 IMAGE="${REGION}-docker.pkg.dev/${CICD_PROJECT}/${AR_REPOSITORY}/${SERVICE}:${TAG}"
@@ -44,6 +42,7 @@ gcloud services enable \
   artifactregistry.googleapis.com \
   iam.googleapis.com \
   storage.googleapis.com \
+  logging.googleapis.com \
   --project="${CICD_PROJECT}"
 
 gcloud services enable bigquery.googleapis.com --project="${DATA_PROJECT}"
@@ -122,24 +121,23 @@ if ! gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="$
     --uniform-bucket-level-access
 fi
 
-# Google requires Storage Admin for a user-specified Cloud Build SA when a
-# user-owned GCS bucket is used for build source/log storage. Scope it only to
-# this dedicated regional staging bucket, not to the project.
+# Source archive is uploaded by the submitter. The dedicated Build SA only
+# needs to read the staged source object. Build logs are written to Cloud
+# Logging (CLOUD_LOGGING_ONLY), not to this bucket.
 gcloud storage buckets add-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
   --member="serviceAccount:${BUILD_SA}" \
-  --role="roles/storage.admin" >/dev/null
+  --role="roles/storage.objectViewer" >/dev/null
 
-# Clean up the temporary permission previously granted to the Compute Engine
-# default SA on this dedicated bucket. Ignore if the binding is already absent.
+# Remove the previous broader bucket permission if an earlier script granted it.
 gcloud storage buckets remove-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
-  --member="serviceAccount:${DEFAULT_COMPUTE_SA}" \
-  --role="roles/storage.objectAdmin" >/dev/null 2>&1 || true
-
-gcloud storage buckets remove-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
-  --member="serviceAccount:${DEFAULT_COMPUTE_SA}" \
+  --member="serviceAccount:${BUILD_SA}" \
   --role="roles/storage.admin" >/dev/null 2>&1 || true
 
-# The dedicated Build SA only needs write access to the Artifact Registry repo.
+gcloud projects add-iam-policy-binding "${CICD_PROJECT}" \
+  --member="serviceAccount:${BUILD_SA}" \
+  --role="roles/logging.logWriter" \
+  --condition=None >/dev/null
+
 gcloud artifacts repositories add-iam-policy-binding "${AR_REPOSITORY}" \
   --project="${CICD_PROJECT}" \
   --location="${REGION}" \
@@ -147,18 +145,18 @@ gcloud artifacts repositories add-iam-policy-binding "${AR_REPOSITORY}" \
   --role="roles/artifactregistry.writer" >/dev/null
 
 printf 'Build staging : gs://%s\n' "${BUILD_STAGING_BUCKET}"
+printf 'Build logs    : Cloud Logging only\n'
 
 printf '\n[5/8] Build immutable container image\n'
-# Organization policy restricts Cloud Storage locations. Stage source and logs
-# explicitly in asia-northeast3 and force this build to use the dedicated SA.
+# The source tarball stays in the regional staging bucket. Build logs are sent
+# only to Cloud Logging so the custom Build SA does not need storage.admin.
 gcloud builds submit "${SCRIPT_DIR}" \
   --project="${CICD_PROJECT}" \
   --region="${REGION}" \
   --service-account="projects/${CICD_PROJECT}/serviceAccounts/${BUILD_SA}" \
-  --default-buckets-behavior=regional-user-owned-bucket \
   --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
-  --gcs-log-dir="gs://${BUILD_STAGING_BUCKET}/logs" \
-  --tag="${IMAGE}"
+  --config="${SCRIPT_DIR}/cloudbuild.yaml" \
+  --substitutions="_IMAGE=${IMAGE}"
 
 printf '\n[6/8] Deploy private Cloud Run service\n'
 gcloud run deploy "${SERVICE}" \
