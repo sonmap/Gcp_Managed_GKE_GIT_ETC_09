@@ -1,0 +1,24 @@
+{
+  "request_id": "DLK-REQ-20260919-001",
+  "action": "GRANT",
+  "task": "sbx01",
+  "data_project": "pjt-c-admin",
+  "datasets": [
+    "dlk_customer",
+    "dlk_sales"
+  ],
+  "principals": {
+    "serviceAccounts": [
+      "gsa-jupyter-sbx01@pjt-net-hub-base.iam.gserviceaccount.com"
+    ],
+    "users": [
+      "user01@sonmap.net",
+      "user02@sonmap.net"
+    ],
+    "groups": [
+      "pgrp-gcp-dev-sbx01@sonmap.net"
+    ]
+  },
+  "role": "roles/bigquery.dataViewer",
+  "approved": true
+}
