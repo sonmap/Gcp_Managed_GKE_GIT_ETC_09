@@ -12,11 +12,14 @@ RUNTIME_SA_NAME="${RUNTIME_SA_NAME:-sa-datalake-access-admin}"
 SCHEDULER_SA_NAME="${SCHEDULER_SA_NAME:-sa-datalake-scheduler}"
 SCHEDULER_JOB="${SCHEDULER_JOB:-datalake-access-provisioner-5m}"
 REQUEST_BUCKET="${REQUEST_BUCKET:-${CICD_PROJECT}-datalake-access-requests}"
+BUILD_STAGING_BUCKET="${BUILD_STAGING_BUCKET:-${CICD_PROJECT}-datalake-build-staging}"
 ROLE_ID="${ROLE_ID:-datalakeDatasetAclAdmin}"
 
 RUNTIME_SA="${RUNTIME_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 SCHEDULER_SA="${SCHEDULER_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 CUSTOM_ROLE="projects/${DATA_PROJECT}/roles/${ROLE_ID}"
+PROJECT_NUMBER="$(gcloud projects describe "${CICD_PROJECT}" --format='value(projectNumber)')"
+BUILD_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
 TAG="$(date -u +%Y%m%d-%H%M%S)"
 IMAGE="${REGION}-docker.pkg.dev/${CICD_PROJECT}/${AR_REPOSITORY}/${SERVICE}:${TAG}"
 
@@ -67,7 +70,7 @@ gcloud projects add-iam-policy-binding "${DATA_PROJECT}" \
   --role="${CUSTOM_ROLE}" \
   --condition=None >/dev/null
 
-printf '\n[4/8] Create request/result bucket\n'
+printf '\n[4/8] Create request/result and regional Cloud Build staging buckets\n'
 if ! gcloud storage buckets describe "gs://${REQUEST_BUCKET}" --project="${CICD_PROJECT}" >/dev/null 2>&1; then
   gcloud storage buckets create "gs://${REQUEST_BUCKET}" \
     --project="${CICD_PROJECT}" \
@@ -83,16 +86,40 @@ gcloud storage buckets add-iam-policy-binding "gs://${REQUEST_BUCKET}" \
   --member="serviceAccount:${RUNTIME_SA}" \
   --role="roles/storage.objectCreator" >/dev/null
 
+# Keep Cloud Build source/log objects separate from the approval request bucket.
+# The current Cloud Build default service account is the CICD project's Compute
+# Engine default SA; grant it access only to this dedicated regional bucket.
+if ! gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="${CICD_PROJECT}" >/dev/null 2>&1; then
+  gcloud storage buckets create "gs://${BUILD_STAGING_BUCKET}" \
+    --project="${CICD_PROJECT}" \
+    --location="${REGION}" \
+    --uniform-bucket-level-access
+fi
+
+gcloud storage buckets add-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
+  --member="serviceAccount:${BUILD_SA}" \
+  --role="roles/storage.objectAdmin" >/dev/null
+
+# The same Build SA must be able to push the immutable container image.
+gcloud artifacts repositories add-iam-policy-binding "${AR_REPOSITORY}" \
+  --project="${CICD_PROJECT}" \
+  --location="${REGION}" \
+  --member="serviceAccount:${BUILD_SA}" \
+  --role="roles/artifactregistry.writer" >/dev/null
+
+printf 'Cloud Build SA: %s\n' "${BUILD_SA}"
+printf 'Build staging : gs://%s\n' "${BUILD_STAGING_BUCKET}"
+
 printf '\n[5/8] Build immutable container image\n'
-# Organization policy restricts Cloud Storage locations. Explicitly stage source
-# in the existing asia-northeast3 request bucket and keep Cloud Build default
-# buckets regional so gcloud does not attempt to create/use a US multi-region
-# staging/log bucket.
+# Organization policy restricts Cloud Storage locations. Stage source and logs
+# explicitly in an asia-northeast3 bucket so Cloud Build never falls back to a
+# US multi-region bucket.
 gcloud builds submit "${SCRIPT_DIR}" \
   --project="${CICD_PROJECT}" \
   --region="${REGION}" \
   --default-buckets-behavior=regional-user-owned-bucket \
-  --gcs-source-staging-dir="gs://${REQUEST_BUCKET}/cloudbuild-source" \
+  --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
+  --gcs-log-dir="gs://${BUILD_STAGING_BUCKET}/logs" \
   --tag="${IMAGE}"
 
 printf '\n[6/8] Deploy private Cloud Run service\n'
