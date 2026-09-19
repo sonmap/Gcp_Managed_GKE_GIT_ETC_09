@@ -84,9 +84,15 @@ gcloud storage buckets add-iam-policy-binding "gs://${REQUEST_BUCKET}" \
   --role="roles/storage.objectCreator" >/dev/null
 
 printf '\n[5/8] Build immutable container image\n'
+# Organization policy restricts Cloud Storage locations. Explicitly stage source
+# in the existing asia-northeast3 request bucket and keep Cloud Build default
+# buckets regional so gcloud does not attempt to create/use a US multi-region
+# staging/log bucket.
 gcloud builds submit "${SCRIPT_DIR}" \
   --project="${CICD_PROJECT}" \
   --region="${REGION}" \
+  --default-buckets-behavior=regional-user-owned-bucket \
+  --gcs-source-staging-dir="gs://${REQUEST_BUCKET}/cloudbuild-source" \
   --tag="${IMAGE}"
 
 printf '\n[6/8] Deploy private Cloud Run service\n'
