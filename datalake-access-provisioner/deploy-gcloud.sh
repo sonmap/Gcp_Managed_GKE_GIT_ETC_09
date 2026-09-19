@@ -10,6 +10,7 @@ AR_REPOSITORY="${AR_REPOSITORY:-ar-sandbox-platform}"
 SERVICE="${SERVICE:-datalake-access-provisioner}"
 RUNTIME_SA_NAME="${RUNTIME_SA_NAME:-sa-datalake-access-admin}"
 SCHEDULER_SA_NAME="${SCHEDULER_SA_NAME:-sa-datalake-scheduler}"
+BUILD_SA_NAME="${BUILD_SA_NAME:-sa-datalake-build}"
 SCHEDULER_JOB="${SCHEDULER_JOB:-datalake-access-provisioner-5m}"
 REQUEST_BUCKET="${REQUEST_BUCKET:-${CICD_PROJECT}-datalake-access-requests}"
 BUILD_STAGING_BUCKET="${BUILD_STAGING_BUCKET:-${CICD_PROJECT}-datalake-build-staging}"
@@ -17,11 +18,23 @@ ROLE_ID="${ROLE_ID:-datalakeDatasetAclAdmin}"
 
 RUNTIME_SA="${RUNTIME_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 SCHEDULER_SA="${SCHEDULER_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
+BUILD_SA="${BUILD_SA_NAME}@${CICD_PROJECT}.iam.gserviceaccount.com"
 CUSTOM_ROLE="projects/${DATA_PROJECT}/roles/${ROLE_ID}"
 PROJECT_NUMBER="$(gcloud projects describe "${CICD_PROJECT}" --format='value(projectNumber)')"
-BUILD_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+DEFAULT_COMPUTE_SA="${PROJECT_NUMBER}-compute@developer.gserviceaccount.com"
+CURRENT_ACCOUNT="$(gcloud config get-value account 2>/dev/null)"
 TAG="$(date -u +%Y%m%d-%H%M%S)"
 IMAGE="${REGION}-docker.pkg.dev/${CICD_PROJECT}/${AR_REPOSITORY}/${SERVICE}:${TAG}"
+
+if [[ -z "${CURRENT_ACCOUNT}" || "${CURRENT_ACCOUNT}" == "(unset)" ]]; then
+  echo "ERROR: no active gcloud account" >&2
+  exit 1
+fi
+if [[ "${CURRENT_ACCOUNT}" == *"gserviceaccount.com" ]]; then
+  CALLER_MEMBER="serviceAccount:${CURRENT_ACCOUNT}"
+else
+  CALLER_MEMBER="user:${CURRENT_ACCOUNT}"
+fi
 
 printf '\n[1/8] Enable APIs\n'
 gcloud services enable \
@@ -47,6 +60,22 @@ if ! gcloud iam service-accounts describe "${SCHEDULER_SA}" --project="${CICD_PR
     --project="${CICD_PROJECT}" \
     --display-name="Cloud Scheduler caller for Data Lake access provisioner"
 fi
+
+if ! gcloud iam service-accounts describe "${BUILD_SA}" --project="${CICD_PROJECT}" >/dev/null 2>&1; then
+  gcloud iam service-accounts create "${BUILD_SA_NAME}" \
+    --project="${CICD_PROJECT}" \
+    --display-name="Dedicated Cloud Build identity for Data Lake access provisioner"
+fi
+
+# The principal submitting a build with a user-specified service account must
+# have iam.serviceAccounts.actAs on that account.
+gcloud iam service-accounts add-iam-policy-binding "${BUILD_SA}" \
+  --project="${CICD_PROJECT}" \
+  --member="${CALLER_MEMBER}" \
+  --role="roles/iam.serviceAccountUser" >/dev/null
+
+printf 'Build submitter: %s\n' "${CURRENT_ACCOUNT}"
+printf 'Cloud Build SA : %s\n' "${BUILD_SA}"
 
 printf '\n[3/8] Create/update minimal BigQuery custom role\n'
 if gcloud iam roles describe "${ROLE_ID}" --project="${DATA_PROJECT}" >/dev/null 2>&1; then
@@ -86,9 +115,6 @@ gcloud storage buckets add-iam-policy-binding "gs://${REQUEST_BUCKET}" \
   --member="serviceAccount:${RUNTIME_SA}" \
   --role="roles/storage.objectCreator" >/dev/null
 
-# Keep Cloud Build source/log objects separate from the approval request bucket.
-# The current Cloud Build default service account is the CICD project's Compute
-# Engine default SA; grant it access only to this dedicated regional bucket.
 if ! gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="${CICD_PROJECT}" >/dev/null 2>&1; then
   gcloud storage buckets create "gs://${BUILD_STAGING_BUCKET}" \
     --project="${CICD_PROJECT}" \
@@ -96,27 +122,39 @@ if ! gcloud storage buckets describe "gs://${BUILD_STAGING_BUCKET}" --project="$
     --uniform-bucket-level-access
 fi
 
+# Google requires Storage Admin for a user-specified Cloud Build SA when a
+# user-owned GCS bucket is used for build source/log storage. Scope it only to
+# this dedicated regional staging bucket, not to the project.
 gcloud storage buckets add-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
   --member="serviceAccount:${BUILD_SA}" \
-  --role="roles/storage.objectAdmin" >/dev/null
+  --role="roles/storage.admin" >/dev/null
 
-# The same Build SA must be able to push the immutable container image.
+# Clean up the temporary permission previously granted to the Compute Engine
+# default SA on this dedicated bucket. Ignore if the binding is already absent.
+gcloud storage buckets remove-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
+  --member="serviceAccount:${DEFAULT_COMPUTE_SA}" \
+  --role="roles/storage.objectAdmin" >/dev/null 2>&1 || true
+
+gcloud storage buckets remove-iam-policy-binding "gs://${BUILD_STAGING_BUCKET}" \
+  --member="serviceAccount:${DEFAULT_COMPUTE_SA}" \
+  --role="roles/storage.admin" >/dev/null 2>&1 || true
+
+# The dedicated Build SA only needs write access to the Artifact Registry repo.
 gcloud artifacts repositories add-iam-policy-binding "${AR_REPOSITORY}" \
   --project="${CICD_PROJECT}" \
   --location="${REGION}" \
   --member="serviceAccount:${BUILD_SA}" \
   --role="roles/artifactregistry.writer" >/dev/null
 
-printf 'Cloud Build SA: %s\n' "${BUILD_SA}"
 printf 'Build staging : gs://%s\n' "${BUILD_STAGING_BUCKET}"
 
 printf '\n[5/8] Build immutable container image\n'
 # Organization policy restricts Cloud Storage locations. Stage source and logs
-# explicitly in an asia-northeast3 bucket so Cloud Build never falls back to a
-# US multi-region bucket.
+# explicitly in asia-northeast3 and force this build to use the dedicated SA.
 gcloud builds submit "${SCRIPT_DIR}" \
   --project="${CICD_PROJECT}" \
   --region="${REGION}" \
+  --service-account="projects/${CICD_PROJECT}/serviceAccounts/${BUILD_SA}" \
   --default-buckets-behavior=regional-user-owned-bucket \
   --gcs-source-staging-dir="gs://${BUILD_STAGING_BUCKET}/source" \
   --gcs-log-dir="gs://${BUILD_STAGING_BUCKET}/logs" \
@@ -168,8 +206,11 @@ else
 fi
 
 printf '\n[8/8] Done\n'
-printf 'Cloud Run    : %s\n' "${SERVICE_URL}"
-printf 'Request GCS  : gs://%s/pending/\n' "${REQUEST_BUCKET}"
-printf 'Result GCS   : gs://%s/results/\n' "${REQUEST_BUCKET}"
-printf 'Scheduler    : %s (*/5 * * * *, Asia/Seoul)\n' "${SCHEDULER_JOB}"
-printf 'Release image: %s\n' "${IMAGE}"
+printf 'Cloud Run     : %s\n' "${SERVICE_URL}"
+printf 'Runtime SA    : %s\n' "${RUNTIME_SA}"
+printf 'Build SA      : %s\n' "${BUILD_SA}"
+printf 'Scheduler SA  : %s\n' "${SCHEDULER_SA}"
+printf 'Request GCS   : gs://%s/pending/\n' "${REQUEST_BUCKET}"
+printf 'Result GCS    : gs://%s/results/\n' "${REQUEST_BUCKET}"
+printf 'Scheduler     : %s (*/5 * * * *, Asia/Seoul)\n' "${SCHEDULER_JOB}"
+printf 'Release image : %s\n' "${IMAGE}"
