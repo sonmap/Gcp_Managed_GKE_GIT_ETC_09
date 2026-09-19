@@ -10,8 +10,6 @@ Git에 포함된 파일별 역할은 [파일 카탈로그](docs/file-catalog.md)
 
 Private Pool에서 GKE Private Endpoint로 배포하는 정식 HA VPN/BGP 토폴로지는 [Cloud Build Private Pool–Private GKE VPN 설계](docs/cloudbuild-private-gke-vpn-design.md)를 따릅니다.
 
-별도 Data Lake BigQuery 조회권한 자동화는 [datalake-access-provisioner/README.md](datalake-access-provisioner/README.md)를 따릅니다. 이 기능은 Cloud Scheduler가 5분마다 private Cloud Run을 호출해 `pjt-c-admin` Dataset ACL을 GRANT/REVOKE 합니다.
-
 ## 실행 원칙
 
 1. 승인과 값 확정은 포털에서 끝납니다.
@@ -36,7 +34,6 @@ Private Pool에서 GKE Private Endpoint로 배포하는 정식 HA VPN/BGP 토폴
 schemas/sandbox-request.schema.json
 examples/sbx01-approved-request.json
 cloudrun-provisioner/
-datalake-access-provisioner/
 automation-runner/
 cloudbuild/sandbox-orchestrate.yaml
 scripts/
@@ -236,3 +233,67 @@ gcloud infra-manager deployments list --project=prj-b-cicd-local-236d \
   --location=asia-northeast3 --filter="name:im-sbx01" \
   --format="table(name.basename(),state,latestRevision.basename())"
 ```
+
+### Private GKE JupyterHub 이미지 미러링
+
+Private GKE 노드에는 외부 인터넷 egress가 없으므로 JupyterHub의 Chart뿐 아니라
+Hub, configurable-http-proxy, single-user 컨테이너 이미지도 내부 Artifact Registry에서
+가져와야 한다. `quay.io` 직접 Pull은 `ImagePullBackOff`로 실패한다.
+
+Foundation이 최신 automation runner 이미지를 만든 뒤, 완전관리형 Cloud Build에서 한 번
+미러링한다. 이 Build는 의도적으로 Private Pool을 사용하지 않으며 외부 Quay 접근만
+수행한다.
+
+```bash
+cd ~/Gcp_Managed_GKE_GIT_ETC_09
+gcloud builds submit --no-source \
+  --config=cloudbuild/mirror-jupyterhub-images.yaml \
+  --project=prj-b-cicd-local-236d \
+  --region=asia-northeast3
+```
+
+Runner는 다음 내부 이미지로 Helm 값을 고정한다.
+
+- `jupyterhub-k8s-hub:4.2.0`
+- `jupyterhub-configurable-http-proxy:4.6.3`
+- `jupyterhub-k8s-singleuser-sample:4.2.0`
+
+GKE Autopilot 노드의 Compute Engine 기본 서비스 계정에는 이 Artifact Registry
+저장소의 `roles/artifactregistry.reader`만 부여한다.
+
+### JupyterHub HTTPS Load Balancer와 DNS
+
+GKE 배포가 완료되어도 `proxy-public` Service는 `ClusterIP`이다. GKE가 만든
+standalone NEG를 확인한 뒤에만 Runner가 `60-loadbalancer` Infrastructure Manager
+Deployment를 적용해 External HTTPS Load Balancer와 고정 Global IP를 생성한다.
+
+Load Balancer Revision이 `APPLIED`가 된 뒤, DNS 관리자는
+`jupyter-sbx01.sonmap.net`의 Public A 레코드를 출력된 Global IP로 등록해야 한다.
+등록 전에는 `DNS_PROBE_FINISHED_NXDOMAIN`이 정상이며, Google-managed 인증서도
+`ACTIVE`가 될 수 없다.
+
+### 비용중지 및 재시작
+
+전면 `terraform destroy`는 State Bucket, IAM, Artifact Registry까지 제거할 수 있으므로 금지한다.
+비용중지는 Foundation Root의 Git 관리 프로파일을 사용한다. 이 프로파일은 GKE Main/Test,
+Cloud Run, Workflow만 삭제하고 State·요청/Bundle Bucket·자동화 Service Account·IAM·기존
+`pjt-net-hub-base` 자원은 보존한다.
+
+```bash
+cd terraform/01-foundation
+terraform plan -input=false \
+  -var-file=foundation-cost-stop.tfvars \
+  -out=foundation-cost-stop.tfplan
+terraform show -no-color foundation-cost-stop.tfplan
+terraform apply foundation-cost-stop.tfplan
+```
+
+Private Pool까지 중지해야 할 때만 다음 Target Destroy를 별도로 실행한다. 다음 정상
+Foundation Apply에서 Pool은 다시 생성된다.
+
+```bash
+terraform destroy -target=google_cloudbuild_worker_pool.terraform -auto-approve
+```
+
+`terraform/00-admin/iam`과 기존 프로젝트의 2차 Infrastructure Manager Deployment는 비용중지
+목적으로 삭제하지 않는다. IAM, 기존 Dataset/GSA, Shared VPC 연결의 드리프트를 막기 위함이다.
