@@ -44,7 +44,8 @@ GCS .../results/*.result.json
 - `roles/bigquery.jobUser`는 이 서비스에서 부여하지 않습니다. Query Job 실행 권한은 기존 Sandbox Job Project에서 별도 통제합니다.
 - Cloud Run은 공개하지 않으며 Scheduler SA만 `roles/run.invoker`를 가집니다.
 - Cloud Build는 Compute Engine 기본 SA를 사용하지 않고 전용 `sa-datalake-build`를 사용합니다.
-- Build source/log는 조직의 Resource Location Policy를 피하기 위해 `asia-northeast3` 전용 GCS Bucket에 저장합니다.
+- Build source는 조직의 Resource Location Policy를 피하기 위해 `asia-northeast3` 전용 GCS Bucket에 저장합니다.
+- Build log는 GCS가 아니라 **Cloud Logging only**로 저장합니다.
 - 처리 결과는 GCS `results/`에 요청 Object Generation별로 기록되므로 5분마다 다시 호출되어도 동일 Generation은 재처리하지 않습니다.
 - 실패 요청을 수정해서 다시 처리하려면 같은 `pending/*.json`을 새 Generation으로 업로드하면 됩니다.
 
@@ -55,6 +56,7 @@ datalake-access-provisioner/
 ├─ main.py
 ├─ requirements.txt
 ├─ Dockerfile
+├─ cloudbuild.yaml
 ├─ deploy-gcloud.sh
 └─ examples/
    └─ request-sbx01.json
@@ -114,6 +116,7 @@ cd datalake-access-provisioner
 | Build SA | `sa-datalake-build@prj-b-cicd-local-236d.iam.gserviceaccount.com` |
 | Scheduler SA | `sa-datalake-scheduler@prj-b-cicd-local-236d.iam.gserviceaccount.com` |
 | Build Staging Bucket | `gs://prj-b-cicd-local-236d-datalake-build-staging` |
+| Build Log | Cloud Logging |
 | Scheduler | `datalake-access-provisioner-5m` |
 | 주기 | `*/5 * * * *` = 5분마다 |
 | Timezone | `Asia/Seoul` |
@@ -143,13 +146,16 @@ sa-datalake-build@prj-b-cicd-local-236d.iam.gserviceaccount.com
 
 ```text
 Build Staging Bucket
-  roles/storage.admin
+  roles/storage.objectViewer
 
 Artifact Registry: ar-sandbox-platform
   roles/artifactregistry.writer
+
+prj-b-cicd-local-236d
+  roles/logging.logWriter
 ```
 
-`roles/storage.admin`은 프로젝트 전체가 아니라 **전용 Build Staging Bucket에만** 부여합니다. 사용자 지정 Cloud Build SA가 user-owned GCS bucket을 build source/log 저장소로 사용하는 경우 필요한 권한입니다.
+Build source archive는 `instance-son`의 실행 계정이 regional staging bucket에 업로드하고, 전용 Build SA는 그 source object만 읽습니다. Build log는 `cloudbuild.yaml`의 `CLOUD_LOGGING_ONLY` 설정으로 Cloud Logging에 기록하므로 Build SA에 GCS `roles/storage.admin`을 주지 않습니다.
 
 `deploy-gcloud.sh` 실행 계정에는 위 Build SA를 사용할 수 있도록 `roles/iam.serviceAccountUser`를 SA 리소스 수준에서 부여합니다. 따라서 `gcloud builds submit`은 Compute Engine 기본 SA가 아닌 `sa-datalake-build`로 실행됩니다.
 
@@ -196,6 +202,15 @@ gcloud logging read \
   --project=prj-b-cicd-local-236d \
   --limit=50 \
   --format='value(timestamp,severity,textPayload,jsonPayload.message)'
+```
+
+Cloud Build 로그:
+
+```bash
+gcloud builds list \
+  --project=prj-b-cicd-local-236d \
+  --region=asia-northeast3 \
+  --limit=5
 ```
 
 ## 4. Scheduler 확인
