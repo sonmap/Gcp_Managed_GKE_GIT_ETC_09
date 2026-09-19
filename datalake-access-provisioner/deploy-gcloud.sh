@@ -98,6 +98,7 @@ gcloud run deploy "${SERVICE}" \
   --no-allow-unauthenticated \
   --timeout=300 \
   --max-instances=1 \
+  --concurrency=1 \
   --set-env-vars="CICD_PROJECT=${CICD_PROJECT},TARGET_PROJECT=${DATA_PROJECT},REQUEST_BUCKET=${REQUEST_BUCKET},REQUEST_PREFIX=pending/,RESULT_PREFIX=results/,MAX_REQUESTS=100"
 
 SERVICE_URL="$(gcloud run services describe "${SERVICE}" \

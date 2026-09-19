@@ -250,14 +250,21 @@ def run_batch():
     )
 
     results = []
-    for source_blob in blobs[:MAX_REQUESTS]:
-        results.append(process_blob(bucket, source_blob))
+    skipped = 0
+    for source_blob in blobs:
+        result = process_blob(bucket, source_blob)
+        if result.get("status") == "SKIPPED":
+            skipped += 1
+            continue
+        results.append(result)
+        if len(results) >= MAX_REQUESTS:
+            break
 
     return jsonify(
         status="DONE",
-        scanned=min(len(blobs), MAX_REQUESTS),
+        scanned=len(results),
         success=sum(1 for item in results if item.get("status") == "SUCCESS"),
         errors=sum(1 for item in results if item.get("status") == "ERROR"),
-        skipped=sum(1 for item in results if item.get("status") == "SKIPPED"),
+        skipped=skipped,
         results=results,
     ), 200
