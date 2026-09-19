@@ -43,6 +43,8 @@ GCS .../results/*.result.json
 - 기존 Dataset ACL은 유지하고 요청한 Principal만 추가/회수합니다.
 - `roles/bigquery.jobUser`는 이 서비스에서 부여하지 않습니다. Query Job 실행 권한은 기존 Sandbox Job Project에서 별도 통제합니다.
 - Cloud Run은 공개하지 않으며 Scheduler SA만 `roles/run.invoker`를 가집니다.
+- Cloud Build는 Compute Engine 기본 SA를 사용하지 않고 전용 `sa-datalake-build`를 사용합니다.
+- Build source/log는 조직의 Resource Location Policy를 피하기 위해 `asia-northeast3` 전용 GCS Bucket에 저장합니다.
 - 처리 결과는 GCS `results/`에 요청 Object Generation별로 기록되므로 5분마다 다시 호출되어도 동일 Generation은 재처리하지 않습니다.
 - 실패 요청을 수정해서 다시 처리하려면 같은 `pending/*.json`을 새 Generation으로 업로드하면 됩니다.
 
@@ -109,12 +111,16 @@ cd datalake-access-provisioner
 |---|---|
 | Cloud Run | `datalake-access-provisioner` |
 | Runtime SA | `sa-datalake-access-admin@prj-b-cicd-local-236d.iam.gserviceaccount.com` |
+| Build SA | `sa-datalake-build@prj-b-cicd-local-236d.iam.gserviceaccount.com` |
 | Scheduler SA | `sa-datalake-scheduler@prj-b-cicd-local-236d.iam.gserviceaccount.com` |
+| Build Staging Bucket | `gs://prj-b-cicd-local-236d-datalake-build-staging` |
 | Scheduler | `datalake-access-provisioner-5m` |
 | 주기 | `*/5 * * * *` = 5분마다 |
 | Timezone | `Asia/Seoul` |
 | Request Bucket | `gs://prj-b-cicd-local-236d-datalake-access-requests` |
 | Data Project | `pjt-c-admin` |
+
+### Runtime SA
 
 Cloud Run Runtime SA에는 `pjt-c-admin`에서 다음 두 Permission만 가진 Custom Role을 생성해 부여합니다.
 
@@ -123,9 +129,31 @@ bigquery.datasets.get
 bigquery.datasets.update
 ```
 
-GCS에는 Runtime SA에 `roles/storage.objectViewer` + `roles/storage.objectCreator`만 부여합니다.
+Request/Result GCS에는 Runtime SA에 `roles/storage.objectViewer` + `roles/storage.objectCreator`만 부여합니다.
 
-> `deploy-gcloud.sh` 실행 계정은 Service Account 생성/IAM 변경/Cloud Run/Cloud Scheduler/Cloud Build/Artifact Registry 작업 권한과 Scheduler OIDC SA에 대한 `iam.serviceAccounts.actAs` 권한이 있어야 합니다.
+### 전용 Cloud Build SA
+
+Build는 다음 계정으로 고정합니다.
+
+```text
+sa-datalake-build@prj-b-cicd-local-236d.iam.gserviceaccount.com
+```
+
+권한 범위는 다음과 같습니다.
+
+```text
+Build Staging Bucket
+  roles/storage.admin
+
+Artifact Registry: ar-sandbox-platform
+  roles/artifactregistry.writer
+```
+
+`roles/storage.admin`은 프로젝트 전체가 아니라 **전용 Build Staging Bucket에만** 부여합니다. 사용자 지정 Cloud Build SA가 user-owned GCS bucket을 build source/log 저장소로 사용하는 경우 필요한 권한입니다.
+
+`deploy-gcloud.sh` 실행 계정에는 위 Build SA를 사용할 수 있도록 `roles/iam.serviceAccountUser`를 SA 리소스 수준에서 부여합니다. 따라서 `gcloud builds submit`은 Compute Engine 기본 SA가 아닌 `sa-datalake-build`로 실행됩니다.
+
+> `deploy-gcloud.sh` 실행 계정은 Service Account 생성/IAM 변경/Cloud Run/Cloud Scheduler/Cloud Build/Artifact Registry 작업 권한이 있어야 합니다.
 
 ## 2. 요청 업로드
 
