@@ -182,7 +182,7 @@ gcloud run services add-iam-policy-binding "${SERVICE}" \
   --role="roles/run.invoker" >/dev/null
 
 printf '\n[7/8] Create/update Cloud Scheduler: every 5 minutes\n'
-SCHEDULER_ARGS=(
+SCHEDULER_COMMON_ARGS=(
   --project="${CICD_PROJECT}"
   --location="${REGION}"
   --schedule='*/5 * * * *'
@@ -191,16 +191,20 @@ SCHEDULER_ARGS=(
   --http-method=POST
   --oidc-service-account-email="${SCHEDULER_SA}"
   --oidc-token-audience="${SERVICE_URL}"
-  --headers='Content-Type=application/json'
   --message-body='{"source":"cloud-scheduler"}'
   --attempt-deadline=300s
 )
 
 if gcloud scheduler jobs describe "${SCHEDULER_JOB}" \
   --project="${CICD_PROJECT}" --location="${REGION}" >/dev/null 2>&1; then
-  gcloud scheduler jobs update http "${SCHEDULER_JOB}" "${SCHEDULER_ARGS[@]}"
+  # update uses --update-headers, while create uses --headers.
+  gcloud scheduler jobs update http "${SCHEDULER_JOB}" \
+    "${SCHEDULER_COMMON_ARGS[@]}" \
+    --update-headers='Content-Type=application/json'
 else
-  gcloud scheduler jobs create http "${SCHEDULER_JOB}" "${SCHEDULER_ARGS[@]}"
+  gcloud scheduler jobs create http "${SCHEDULER_JOB}" \
+    "${SCHEDULER_COMMON_ARGS[@]}" \
+    --headers='Content-Type=application/json'
 fi
 
 printf '\n[8/8] Done\n'
