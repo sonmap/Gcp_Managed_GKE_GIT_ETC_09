@@ -53,6 +53,12 @@ steps:
     secretEnv:
       - JUPYTER_OAUTH_CLIENT_ID
       - JUPYTER_OAUTH_CLIENT_SECRET
+    env:
+      - JUPYTER_IMAGE_PREFIX=${_JUPYTER_IMAGE_PREFIX}
+      - JUPYTER_CHART_VERSION=${_JUPYTER_CHART_VERSION}
+      - JUPYTER_CHP_TAG=${_JUPYTER_CHP_TAG}
+      - JUPYTER_SINGLEUSER_IMAGE=${_JUPYTER_SINGLEUSER_IMAGE}
+      - JUPYTER_SINGLEUSER_IMAGE_TAG=${_JUPYTER_SINGLEUSER_IMAGE_TAG}
     args: [scripts/render_jupyter_values.py, /workspace/request.json, /workspace/jupyter-values.json]
 
   - name: ${_AUTOMATION_IMAGE}
@@ -118,6 +124,10 @@ substitutions:
   _SHARED_URL_MAP_NAME: urlmap-alb-jupyter-shared
   _JUPYTER_CHART: oci://asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/jupyterhub
   _JUPYTER_CHART_VERSION: 4.2.0
+  _JUPYTER_IMAGE_PREFIX: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform
+  _JUPYTER_CHP_TAG: 4.6.3
+  _JUPYTER_SINGLEUSER_IMAGE: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/jupyterhub-k8s-singleuser-standard
+  _JUPYTER_SINGLEUSER_IMAGE_TAG: 4.2.0-r1-test
   _AUTOMATION_IMAGE: asia-northeast3-docker.pkg.dev/prj-b-cicd-local-236d/ar-sandbox-platform/sandbox-automation-runner:latest
 
 availableSecrets:
