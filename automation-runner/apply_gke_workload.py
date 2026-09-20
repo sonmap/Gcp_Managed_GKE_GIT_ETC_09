@@ -169,6 +169,14 @@ def main():
     run(["kubectl", "apply", "-f", "-"], input_text=json.dumps(manifest), env=child_env)
 
     image_prefix = f"{region}-docker.pkg.dev/{project}/ar-sandbox-platform"
+    singleuser_image = os.environ.get(
+        "JUPYTER_SINGLEUSER_IMAGE",
+        f"{image_prefix}/jupyterhub-k8s-singleuser-standard",
+    )
+    singleuser_image_tag = os.environ.get(
+        "JUPYTER_SINGLEUSER_IMAGE_TAG",
+        "4.2.0-r1-test",
+    )
     allowed_users = [
         member.split("@", 1)[0]
         for member in request["identity"]["members"]
@@ -221,8 +229,8 @@ def main():
         },
         "singleuser": {
             "image": {
-                "name": f"{image_prefix}/jupyterhub-k8s-singleuser-sample",
-                "tag": os.environ["JUPYTER_CHART_VERSION"],
+                "name": singleuser_image,
+                "tag": singleuser_image_tag,
             },
             "serviceAccountName": ksa,
             "cpu": {"guarantee": 1, "limit": 2},
